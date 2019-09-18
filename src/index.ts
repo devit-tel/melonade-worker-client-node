@@ -41,7 +41,10 @@ const mapTaskNameToTopic = (taskName: string, prefix: string) =>
 
 const isTaskTimeout = (task: ITask): boolean => {
   const elapsedTime = Date.now() - task.startTime;
-  return task.ackTimeout >= elapsedTime || task.timeout >= elapsedTime;
+  return (
+    (task.ackTimeout > 0 && task.ackTimeout < elapsedTime) ||
+    (task.timeout > 0 && task.timeout < elapsedTime)
+  );
 };
 
 const validateTaskResult = (result: ITaskResponse): ITaskResponse => {
@@ -167,6 +170,10 @@ export class Worker {
   private processTask = async (task: ITask) => {
     const isTimeout = isTaskTimeout(task);
     if (isTimeout && this.pmConfig.processTimeoutTask === false) return;
+    this.updateTask(task, {
+      status: TaskStates.Inprogress,
+    });
+
     try {
       switch (task.type) {
         case TaskTypes.Task:
