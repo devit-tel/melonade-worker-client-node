@@ -106,20 +106,12 @@ export class Worker {
 
     this.consumer.on('ready', () => {
       if (Array.isArray(tasksName)) {
-        console.log(
-          tasksName.map((taskName: string) =>
-            mapTaskNameToTopic(taskName, this.pmConfig.kafkaTopicPrefix),
-          ),
-        );
         this.consumer.subscribe(
           tasksName.map((taskName: string) =>
             mapTaskNameToTopic(taskName, this.pmConfig.kafkaTopicPrefix),
           ),
         );
       } else {
-        console.log(
-          mapTaskNameToTopic(tasksName, this.pmConfig.kafkaTopicPrefix),
-        );
         this.consumer.subscribe([
           mapTaskNameToTopic(tasksName, this.pmConfig.kafkaTopicPrefix),
         ]);
@@ -212,7 +204,7 @@ export class Worker {
 
       // Check if still isSubscribed
       if (this.isSubscribed) {
-        setImmediate(this.subscribe);
+        setImmediate(this.poll);
       }
     }
   };
