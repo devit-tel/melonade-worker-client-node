@@ -6,7 +6,7 @@ import { TaskTypes, TaskStates } from './constants/task';
 
 const DEFAULT_PM_CONFIG = {
   kafkaTopicPrefix: 'node',
-  autoCommit: true,
+  autoCommit: false,
   maximumPollingTasks: 100,
   pollingCooldown: 1,
   processTimeoutTask: false,
@@ -123,9 +123,9 @@ export class Worker {
     this.producer.connect();
   }
 
-  consume(
+  consume = (
     messageNumber: number = this.pmConfig.maximumPollingTasks,
-  ): Promise<ITask[]> {
+  ): Promise<ITask[]> => {
     return new Promise((resolve: Function, reject: Function) => {
       this.consumer.consume(
         messageNumber,
@@ -139,9 +139,9 @@ export class Worker {
         },
       );
     });
-  }
+  };
 
-  updateTask(task: ITask, result: ITaskResponse) {
+  updateTask = (task: ITask, result: ITaskResponse) => {
     return this.producer.produce(
       `${this.pmConfig.kafkaTopicPrefix}.saga.event`,
       null,
@@ -154,13 +154,13 @@ export class Worker {
       }),
       null,
     );
-  }
+  };
 
-  commit() {
+  commit = () => {
     return this.consumer.commit();
-  }
+  };
 
-  private async processTask(task: ITask) {
+  private processTask = async (task: ITask) => {
     const isTimeout = isTaskTimeout(task);
     if (isTimeout && this.pmConfig.processTimeoutTask === false) return;
     try {
@@ -186,9 +186,9 @@ export class Worker {
         },
       });
     }
-  }
+  };
 
-  private async poll() {
+  private poll = async () => {
     try {
       const tasks = await this.consume();
       if (tasks.length > 0) {
@@ -203,16 +203,16 @@ export class Worker {
         setImmediate(this.subscribe);
       }
     }
-  }
+  };
 
-  subscribe() {
+  subscribe = () => {
     if (!this.isSubscribed) {
       this.isSubscribed = true;
       this.poll();
     }
-  }
+  };
 
-  unsubscribe() {
+  unsubscribe = () => {
     this.isSubscribed = false;
-  }
+  };
 }
