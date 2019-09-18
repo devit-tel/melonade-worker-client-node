@@ -161,7 +161,7 @@ export class Worker {
           logs: result.logs,
         }),
       ),
-      null,
+      task.transactionId,
     );
   };
 
