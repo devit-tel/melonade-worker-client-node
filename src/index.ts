@@ -6,10 +6,10 @@ import { TaskTypes, TaskStates } from './constants/task';
 
 const DEFAULT_PM_CONFIG = {
   kafkaTopicPrefix: 'node',
-  autoCommit: false,
   maximumPollingTasks: 100,
   pollingCooldown: 1,
   processTimeoutTask: false,
+  autoStart: true,
 };
 
 export interface ITaskResponse {
@@ -30,14 +30,14 @@ export interface IKafkaConsumerMessage {
 export interface IPmConfig {
   kafkaServers: string;
   kafkaTopicPrefix?: string;
-  autoCommit?: boolean;
   maximumPollingTasks?: number;
   pollingCooldown?: number;
   processTimeoutTask?: boolean;
+  autoStart?: boolean;
 }
 
 const mapTaskNameToTopic = (taskName: string, prefix: string) =>
-  `${prefix}.saga.${taskName}`;
+  `${prefix}.saga.task.${taskName}`;
 
 const isTaskTimeout = (task: ITask): boolean => {
   const elapsedTime = Date.now() - task.startTime;
@@ -106,15 +106,27 @@ export class Worker {
 
     this.consumer.on('ready', () => {
       if (Array.isArray(tasksName)) {
+        console.log(
+          tasksName.map((taskName: string) =>
+            mapTaskNameToTopic(taskName, this.pmConfig.kafkaTopicPrefix),
+          ),
+        );
         this.consumer.subscribe(
           tasksName.map((taskName: string) =>
             mapTaskNameToTopic(taskName, this.pmConfig.kafkaTopicPrefix),
           ),
         );
       } else {
+        console.log(
+          mapTaskNameToTopic(tasksName, this.pmConfig.kafkaTopicPrefix),
+        );
         this.consumer.subscribe([
           mapTaskNameToTopic(tasksName, this.pmConfig.kafkaTopicPrefix),
         ]);
+      }
+
+      if (this.pmConfig.autoStart) {
+        this.subscribe();
       }
     });
 
