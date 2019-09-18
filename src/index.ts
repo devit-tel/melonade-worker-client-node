@@ -152,13 +152,15 @@ export class Worker {
     return this.producer.produce(
       `${this.pmConfig.kafkaTopicPrefix}.saga.event`,
       null,
-      JSON.stringify({
-        transactionId: task.transactionId,
-        taskId: task.taskId,
-        status: result.status,
-        output: result.output,
-        logs: result.logs,
-      }),
+      new Buffer(
+        JSON.stringify({
+          transactionId: task.transactionId,
+          taskId: task.taskId,
+          status: result.status,
+          output: result.output,
+          logs: result.logs,
+        }),
+      ),
       null,
     );
   };
