@@ -12,7 +12,8 @@
     "build:watch": "npm run clean & tsc -w -p tsconfig.release.json",
     "lint": "tslint -t stylish --project \"tsconfig.json\"",
     "test": "jest --coverage",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "prepublish": "npm run build"
   },
   "author": "NV4RE",
   "license": "Apache-2.0",
