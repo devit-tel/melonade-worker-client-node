@@ -72,10 +72,12 @@ export class Worker {
   private isSubscribed: boolean = false;
   private taskCallback: (
     task: ITask,
+    logger: (message: string) => void,
     isTimeout: boolean,
   ) => ITaskResponse | Promise<ITaskResponse>;
   private compensateCallback: (
     task: ITask,
+    logger: (message: string) => void,
     isTimeout: boolean,
   ) => ITaskResponse | Promise<ITaskResponse>;
 
@@ -176,17 +178,28 @@ export class Worker {
       status: TaskStates.Inprogress,
     });
 
+    const logger = (logs: string) => {
+      this.updateTask(task, {
+        status: TaskStates.Inprogress,
+        logs,
+      });
+    };
+
     try {
       switch (task.type) {
         case TaskTypes.Task:
           return this.updateTask(
             task,
-            validateTaskResult(await this.taskCallback(task, isTimeout)),
+            validateTaskResult(
+              await this.taskCallback(task, logger, isTimeout),
+            ),
           );
         case TaskTypes.Compensate:
           return this.updateTask(
             task,
-            validateTaskResult(await this.compensateCallback(task, isTimeout)),
+            validateTaskResult(
+              await this.compensateCallback(task, logger, isTimeout),
+            ),
           );
         default:
           break;
