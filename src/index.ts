@@ -5,7 +5,7 @@ import { jsonTryParse } from './utils/common';
 import { TaskTypes, TaskStates } from './constants/task';
 
 const DEFAULT_PM_CONFIG = {
-  kafkaTopicPrefix: 'node',
+  namespace: 'node',
   maximumPollingTasks: 100,
   pollingCooldown: 1,
   processTimeoutTask: false,
@@ -29,7 +29,7 @@ export interface IKafkaConsumerMessage {
 
 export interface IPmConfig {
   kafkaServers: string;
-  kafkaTopicPrefix?: string;
+  namespace?: string;
   maximumPollingTasks?: number;
   pollingCooldown?: number;
   processTimeoutTask?: boolean;
@@ -98,7 +98,7 @@ export class Worker {
     this.consumer = new KafkaConsumer(
       {
         'bootstrap.servers': pmConfig.kafkaServers,
-        'group.id': `${this.pmConfig.kafkaTopicPrefix}.node.client`,
+        'group.id': `${this.pmConfig.namespace}.node.client`,
         'enable.auto.commit': 'false',
         ...kafkaConfig,
       },
@@ -113,12 +113,12 @@ export class Worker {
       if (Array.isArray(tasksName)) {
         this.consumer.subscribe(
           tasksName.map((taskName: string) =>
-            mapTaskNameToTopic(taskName, this.pmConfig.kafkaTopicPrefix),
+            mapTaskNameToTopic(taskName, this.pmConfig.namespace),
           ),
         );
       } else {
         this.consumer.subscribe([
-          mapTaskNameToTopic(tasksName, this.pmConfig.kafkaTopicPrefix),
+          mapTaskNameToTopic(tasksName, this.pmConfig.namespace),
         ]);
       }
 
@@ -152,7 +152,7 @@ export class Worker {
 
   updateTask = (task: ITask, result: ITaskResponse) => {
     return this.producer.produce(
-      `${this.pmConfig.kafkaTopicPrefix}.saga.event`,
+      `${this.pmConfig.namespace}.saga.event`,
       null,
       new Buffer(
         JSON.stringify({
