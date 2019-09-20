@@ -83,8 +83,16 @@ export class Worker {
 
   constructor(
     tasksName: string | string[],
-    taskCallback: (task: ITask) => ITaskResponse | Promise<ITaskResponse>,
-    compensateCallback: (task: ITask) => ITaskResponse | Promise<ITaskResponse>,
+    taskCallback: (
+      task: ITask,
+      logger: (message: string) => void,
+      isTimeout: boolean,
+    ) => ITaskResponse | Promise<ITaskResponse>,
+    compensateCallback: (
+      task: ITask,
+      logger: (message: string) => void,
+      isTimeout: boolean,
+    ) => ITaskResponse | Promise<ITaskResponse>,
     pmConfig: IPmConfig,
     kafkaConfig: any = {},
   ) {
