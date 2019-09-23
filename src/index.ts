@@ -80,6 +80,9 @@ export class Worker {
     logger: (message: string) => void,
     isTimeout: boolean,
   ) => ITaskResponse | Promise<ITaskResponse>;
+  private runningTasks: {
+    [taskId: string]: ITask;
+  } = {};
 
   constructor(
     tasksName: string | string[],
@@ -140,6 +143,18 @@ export class Worker {
     this.producer.connect();
   }
 
+  get health(): {
+    consumer: 'connected' | 'disconnected';
+    producer: 'connected' | 'disconnected';
+    tasks: { [taskId: string]: ITask };
+  } {
+    return {
+      consumer: this.consumer.isConnected() ? 'connected' : 'disconnected',
+      producer: this.producer.isConnected() ? 'connected' : 'disconnected',
+      tasks: this.runningTasks,
+    };
+  }
+
   consume = (
     messageNumber: number = this.pmConfig.maximumPollingTasks,
   ): Promise<ITask[]> => {
@@ -179,13 +194,7 @@ export class Worker {
     return this.consumer.commit();
   };
 
-  private processTask = async (task: ITask) => {
-    const isTimeout = isTaskTimeout(task);
-    if (isTimeout && this.pmConfig.processTimeoutTask === false) return;
-    this.updateTask(task, {
-      status: TaskStates.Inprogress,
-    });
-
+  private dispatchTask = async (task: ITask, isTimeout: boolean) => {
     const logger = (logs: string) => {
       this.updateTask(task, {
         status: TaskStates.Inprogress,
@@ -193,25 +202,28 @@ export class Worker {
       });
     };
 
+    switch (task.type) {
+      case TaskTypes.Task:
+        return await this.taskCallback(task, logger, isTimeout);
+      case TaskTypes.Compensate:
+        return await this.compensateCallback(task, logger, isTimeout);
+      default:
+        throw new Error(`Task type: "${task.type}" is invalid`);
+    }
+  };
+
+  private processTask = async (task: ITask) => {
+    const isTimeout = isTaskTimeout(task);
+    if (isTimeout && this.pmConfig.processTimeoutTask === false) return;
+    this.updateTask(task, {
+      status: TaskStates.Inprogress,
+    });
+
+    this.runningTasks[task.taskId] = task;
+
     try {
-      switch (task.type) {
-        case TaskTypes.Task:
-          return this.updateTask(
-            task,
-            validateTaskResult(
-              await this.taskCallback(task, logger, isTimeout),
-            ),
-          );
-        case TaskTypes.Compensate:
-          return this.updateTask(
-            task,
-            validateTaskResult(
-              await this.compensateCallback(task, logger, isTimeout),
-            ),
-          );
-        default:
-          break;
-      }
+      const result = await this.dispatchTask(task, isTimeout);
+      this.updateTask(task, validateTaskResult(result));
     } catch (error) {
       this.updateTask(task, {
         status: TaskStates.Failed,
@@ -219,6 +231,8 @@ export class Worker {
           error: error.toString(),
         },
       });
+    } finally {
+      delete this.runningTasks[task.taskId];
     }
   };
 
