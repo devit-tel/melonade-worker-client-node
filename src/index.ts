@@ -109,11 +109,11 @@ export class Worker {
     this.consumer = new KafkaConsumer(
       {
         'bootstrap.servers': pmConfig.kafkaServers,
-        'group.id': `${this.pmConfig.namespace}.node.client`,
+        'group.id': `saga-${this.pmConfig.namespace}.client`,
         'enable.auto.commit': 'false',
         ...kafkaConfig,
       },
-      {},
+      { 'auto.offset.reset': 'earliest' },
     );
     this.producer = new Producer(
       { 'bootstrap.servers': pmConfig.kafkaServers, ...kafkaConfig },
