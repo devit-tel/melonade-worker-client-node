@@ -1,6 +1,6 @@
 {
   "name": "node-saga-client",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "",
   "engines": {
     "node": ">= 10.13 <11"
