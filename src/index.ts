@@ -3,6 +3,7 @@ import * as R from 'ramda';
 import { ITask } from './task';
 import { jsonTryParse } from './utils/common';
 import { TaskTypes, TaskStates } from './constants/task';
+import { EventEmitter } from 'events';
 
 const DEFAULT_PM_CONFIG = {
   namespace: 'node',
@@ -11,6 +12,17 @@ const DEFAULT_PM_CONFIG = {
   processTimeoutTask: false,
   autoStart: true,
 };
+
+export { TaskTypes, TaskStates } from './constants/task';
+
+export interface IEvent {
+  transactionId: string;
+  type: 'TRANSACTION' | 'WORKFLOW' | 'TASK' | 'SYSTEM';
+  details?: any;
+  timestamp: number;
+  isError: boolean;
+  error?: string;
+}
 
 export interface ITaskResponse {
   status: TaskStates.Inprogress | TaskStates.Completed | TaskStates.Failed;
@@ -34,6 +46,17 @@ export interface IPmConfig {
   pollingCooldown?: number;
   processTimeoutTask?: boolean;
   autoStart?: boolean;
+}
+
+export interface IAdminConfig {
+  kafkaServers: string;
+  namespace?: string;
+  adminId: string;
+}
+
+export interface IWorkflowRef {
+  name: string;
+  rev: string;
 }
 
 const mapTaskNameToTopic = (taskName: string, prefix: string) =>
@@ -65,6 +88,115 @@ const validateTaskResult = (result: ITaskResponse): ITaskResponse => {
   return result;
 };
 
+export class Admin extends EventEmitter {
+  consumer: KafkaConsumer;
+  producer: Producer;
+  private adminConfig: IAdminConfig;
+  private watchingTransactions: string[] = [];
+
+  constructor(adminConfig: IAdminConfig, kafkaConfig: any) {
+    super();
+
+    this.adminConfig = adminConfig;
+    if (adminConfig.adminId) {
+      this.consumer = new KafkaConsumer(
+        {
+          'bootstrap.servers': adminConfig.kafkaServers,
+          'group.id': adminConfig.adminId,
+          'enable.auto.commit': 'true',
+          ...kafkaConfig,
+        },
+        { 'auto.offset.reset': 'latest' }, //Don't poll old events
+      );
+
+      this.consumer.on('ready', () => {
+        this.consumer.subscribe([`${this.adminConfig.namespace}.saga.store`]);
+        this.poll();
+      });
+
+      this.consumer.connect();
+    }
+
+    this.producer = new Producer(
+      { 'bootstrap.servers': adminConfig.kafkaServers, ...kafkaConfig },
+      {},
+    );
+
+    this.producer.connect();
+  }
+
+  startTransaction = (
+    transactionId: string,
+    workflow: IWorkflowRef,
+    input: any,
+  ) => {
+    if (!transactionId) throw new Error('transactionId is required');
+    this.producer.produce(
+      `${this.adminConfig.namespace}.saga.command`,
+      null,
+      Buffer.from(
+        JSON.stringify({
+          type: 'START_TRANSACTION',
+          transactionId,
+          workflow,
+          input,
+        }),
+      ),
+      transactionId,
+    );
+  };
+
+  consume = (messageNumber: number = 100): Promise<IEvent[]> => {
+    return new Promise((resolve: Function, reject: Function) => {
+      this.consumer.consume(
+        messageNumber,
+        (error: Error, messages: IKafkaConsumerMessage[]) => {
+          if (error) return reject(error);
+          resolve(
+            messages.map((message: IKafkaConsumerMessage) =>
+              jsonTryParse(message.value.toString(), undefined),
+            ),
+          );
+        },
+      );
+    });
+  };
+
+  private poll = async () => {
+    try {
+      const events = await this.consume();
+      if (events.length > 0) {
+        for (const event of events) {
+          if (this.watchingTransactions.includes(event.transactionId)) {
+            this.emit(event.type, event);
+          }
+        }
+        this.consumer.commit();
+      }
+    } finally {
+      // In case of consume error
+      setImmediate(this.poll);
+    }
+  };
+
+  subscribe = (transactionId: string): void => {
+    if (!this.adminConfig.adminId)
+      throw new Error(`adminConfig.adminId is required for this feature`);
+    if (!this.watchingTransactions.includes(transactionId)) {
+      this.watchingTransactions.push(transactionId);
+    }
+  };
+
+  unsubscribe = (transactionId: string): void => {
+    if (!this.watchingTransactions.includes(transactionId)) {
+      this.watchingTransactions = this.watchingTransactions.filter(
+        tId => tId !== transactionId,
+      );
+    }
+  };
+}
+
+// Maybe use kafka streamAPI
 export class Worker {
   private consumer: KafkaConsumer;
   private producer: Producer;
@@ -177,7 +309,7 @@ export class Worker {
     return this.producer.produce(
       `${this.pmConfig.namespace}.saga.event`,
       null,
-      new Buffer(
+      Buffer.from(
         JSON.stringify({
           transactionId: task.transactionId,
           taskId: task.taskId,
