@@ -114,6 +114,7 @@ export class Admin extends EventEmitter {
         this.poll();
       });
 
+      this.consumer.setDefaultConsumeTimeout(1);
       this.consumer.connect();
     }
 
@@ -122,6 +123,7 @@ export class Admin extends EventEmitter {
       {},
     );
 
+    this.producer.setPollInterval(100);
     this.producer.connect();
   }
 
@@ -272,6 +274,8 @@ export class Worker {
 
     this.consumer.setDefaultConsumeTimeout(this.pmConfig.pollingCooldown);
     this.consumer.connect();
+
+    this.producer.setPollInterval(100);
     this.producer.connect();
   }
 
