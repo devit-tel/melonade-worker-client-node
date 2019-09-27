@@ -19,7 +19,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@types/ramda": "^0.26.16",
-    "node-rdkafka": "2.7.0",
+    "node-rdkafka": "2.6.1",
     "ramda": "^0.26.1",
     "tslib": "~1.10.0"
   },

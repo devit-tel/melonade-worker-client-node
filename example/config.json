@@ -1,0 +1,10 @@
+{
+  "sagaConfig": {
+    "kafkaServers": "kafka-staging.infra.svc.clustername.k8s.local",
+    "namespace": "k8s"
+  },
+  "adminConfig": {
+    "kafkaServers": "kafka-staging.infra.svc.clustername.k8s.local",
+    "namespace": "k8s"
+  }
+}
