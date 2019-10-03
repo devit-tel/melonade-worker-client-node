@@ -46,7 +46,6 @@ const mapTaskNameToTopic = (taskName: string, prefix: string) =>
 
 const isTaskTimeout = (task: Task.ITask): boolean => {
   const elapsedTime = Date.now() - task.startTime;
-  console.log(task.ackTimeout, task.timeout, elapsedTime);
   return (
     (task.ackTimeout > 0 && task.ackTimeout < elapsedTime) ||
     (task.timeout > 0 && task.timeout < elapsedTime)
@@ -363,7 +362,6 @@ export class Worker {
     try {
       const tasks = await this.consume();
       if (tasks.length > 0) {
-        console.log('found', tasks.length);
         await Promise.all(tasks.map(this.processTask));
         this.commit();
       }
