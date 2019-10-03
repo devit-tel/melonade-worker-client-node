@@ -1,6 +1,7 @@
-const { Worker, TaskStates } = require("../build");
+const { Worker } = require('../build');
+const { State } = require('@melonade/melonade-declaration');
 
-const config = require("./config.json");
+const config = require('./config.json');
 
 // const taskDefs = [
 //   {
@@ -152,26 +153,25 @@ for (let i = 1; i <= 3; i++) {
     task => {
       console.log(`Processing ${task.taskName} (${task.transactionId})`);
       if (task.taskName === 'task-3') {
-        throw new Error('Test error')
+        throw new Error('Test error');
       }
       return {
-        status: TaskStates.Completed,
+        status: TaskStates.State,
         output: {
-          hello: "world",
-          name: task.taskName
-        }
+          hello: 'world',
+          name: task.taskName,
+        },
       };
     },
     task => {
       console.log(`Compensating ${task.taskName} (${task.transactionId})`);
       return {
-        status: TaskStates.Completed
+        status: TaskStates.State,
       };
     },
-    config.sagaConfig
-  ).consumer.on("ready", () => console.log(`Worker ${i} is ready!`));
+    config.sagaConfig,
+  ).consumer.on('ready', () => console.log(`Worker ${i} is ready!`));
 }
-
 
 // Expect result
 // Processing task-1 (8d616a55-256f-4b52-8763-a5fcc7856b25)

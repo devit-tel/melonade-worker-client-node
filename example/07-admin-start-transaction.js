@@ -58,11 +58,11 @@ adminClient.producer.on('ready', () => {
       transactionId,
       {
         name: 'test',
-        rev: 'simple',
+        rev: 'timeout',
       },
       { hello: 'world' },
     );
-    adminClient.subscribe(transactionId);
+    // adminClient.subscribe(transactionId);
   }
   // }, 5000);
 });

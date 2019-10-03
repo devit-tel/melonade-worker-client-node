@@ -1,6 +1,6 @@
 {
-  "name": "node-saga-client",
-  "version": "0.1.3",
+  "name": "@melonade/melonade-client",
+  "version": "0.1.4",
   "description": "",
   "engines": {
     "node": ">= 10.13 <11"
@@ -13,13 +13,14 @@
     "lint": "tslint -t stylish --project \"tsconfig.json\"",
     "test": "jest --coverage",
     "test:watch": "jest --watch",
-    "prepublish": "npm run build"
+    "prepublishOnly": "npm run build"
   },
   "author": "NV4RE",
   "license": "Apache-2.0",
   "dependencies": {
+    "@melonade/melonade-declaration": "^0.2.0",
+    "@nv4re/node-rdkafka": "2.7.2",
     "@types/ramda": "^0.26.16",
-    "node-rdkafka": "2.6.1",
     "ramda": "^0.26.1",
     "tslib": "~1.10.0"
   },

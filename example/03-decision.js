@@ -1,6 +1,7 @@
-const { Worker, TaskStates } = require("../build");
+const { Worker } = require('../build');
+const { State } = require('@melonade/melonade-declaration');
 
-const config = require("./config.json");
+const config = require('./config.json');
 
 // const taskDefs = [
 //   {
@@ -207,17 +208,17 @@ for (let i = 1; i <= 3; i++) {
     task => {
       console.log(`Processing ${task.taskReferenceName}`);
       return {
-        status: TaskStates.Completed
+        status: State.TaskStates.Completed,
       };
     },
     task => {
       console.log(`Compensating ${task.taskReferenceName}`);
       return {
-        status: TaskStates.Completed
+        status: State.TaskStates.Completed,
       };
     },
-    config.sagaConfig
-  ).consumer.on("ready", () => console.log(`Worker ${i} is ready!`));
+    config.sagaConfig,
+  ).consumer.on('ready', () => console.log(`Worker ${i} is ready!`));
 }
 
 // Expect result input

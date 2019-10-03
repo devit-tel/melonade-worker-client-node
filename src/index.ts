@@ -1,8 +1,7 @@
-import { KafkaConsumer, Producer } from 'node-rdkafka';
+import { KafkaConsumer, Producer } from '@nv4re/node-rdkafka';
+import { Task, State, Event, Kafka } from '@melonade/melonade-declaration';
 import * as R from 'ramda';
-import { ITask } from './task';
 import { jsonTryParse } from './utils/common';
-import { TaskTypes, TaskStates } from './constants/task';
 import { EventEmitter } from 'events';
 
 const DEFAULT_PM_CONFIG = {
@@ -13,30 +12,13 @@ const DEFAULT_PM_CONFIG = {
   autoStart: true,
 };
 
-export { TaskTypes, TaskStates } from './constants/task';
-
-export interface IEvent {
-  transactionId: string;
-  type: 'TRANSACTION' | 'WORKFLOW' | 'TASK' | 'SYSTEM';
-  details?: any;
-  timestamp: number;
-  isError: boolean;
-  error?: string;
-}
-
 export interface ITaskResponse {
-  status: TaskStates.Inprogress | TaskStates.Completed | TaskStates.Failed;
+  status:
+    | State.TaskStates.Inprogress
+    | State.TaskStates.Completed
+    | State.TaskStates.Failed;
   output?: any;
   logs?: string | string[];
-}
-
-export interface IKafkaConsumerMessage {
-  value: Buffer;
-  size: number;
-  key: string;
-  topic: string;
-  offset: number;
-  partition: number;
 }
 
 export interface IPmConfig {
@@ -60,10 +42,11 @@ export interface IWorkflowRef {
 }
 
 const mapTaskNameToTopic = (taskName: string, prefix: string) =>
-  `${prefix}.saga.task.${taskName}`;
+  `melonade.${prefix}.task.${taskName}`;
 
-const isTaskTimeout = (task: ITask): boolean => {
+const isTaskTimeout = (task: Task.ITask): boolean => {
   const elapsedTime = Date.now() - task.startTime;
+  console.log(task.ackTimeout, task.timeout, elapsedTime);
   return (
     (task.ackTimeout > 0 && task.ackTimeout < elapsedTime) ||
     (task.timeout > 0 && task.timeout < elapsedTime)
@@ -73,12 +56,14 @@ const isTaskTimeout = (task: ITask): boolean => {
 const validateTaskResult = (result: ITaskResponse): ITaskResponse => {
   const status = R.prop('status', result);
   if (
-    ![TaskStates.Inprogress, TaskStates.Completed, TaskStates.Failed].includes(
-      status,
-    )
+    ![
+      State.TaskStates.Inprogress,
+      State.TaskStates.Completed,
+      State.TaskStates.Failed,
+    ].includes(status)
   ) {
     return {
-      status: TaskStates.Failed,
+      status: State.TaskStates.Failed,
       output: {
         error: `"${status}" is invalid status`,
       },
@@ -110,7 +95,9 @@ export class Admin extends EventEmitter {
       );
 
       this.consumer.on('ready', () => {
-        this.consumer.subscribe([`${this.adminConfig.namespace}.saga.store`]);
+        this.consumer.subscribe([
+          `melonade.${this.adminConfig.namespace}.store`,
+        ]);
         this.poll();
       });
 
@@ -134,7 +121,7 @@ export class Admin extends EventEmitter {
   ) => {
     if (!transactionId) throw new Error('transactionId is required');
     this.producer.produce(
-      `${this.adminConfig.namespace}.saga.command`,
+      `melonade.${this.adminConfig.namespace}.command`,
       null,
       Buffer.from(
         JSON.stringify({
@@ -148,14 +135,14 @@ export class Admin extends EventEmitter {
     );
   };
 
-  consume = (messageNumber: number = 100): Promise<IEvent[]> => {
+  consume = (messageNumber: number = 100): Promise<Event.AllEvent[]> => {
     return new Promise((resolve: Function, reject: Function) => {
       this.consumer.consume(
         messageNumber,
-        (error: Error, messages: IKafkaConsumerMessage[]) => {
+        (error: Error, messages: Kafka.kafkaConsumerMessage[]) => {
           if (error) return reject(error);
           resolve(
-            messages.map((message: IKafkaConsumerMessage) =>
+            messages.map((message: Kafka.kafkaConsumerMessage) =>
               jsonTryParse(message.value.toString(), undefined),
             ),
           );
@@ -205,28 +192,28 @@ export class Worker {
   pmConfig: IPmConfig;
   private isSubscribed: boolean = false;
   private taskCallback: (
-    task: ITask,
+    task: Task.ITask,
     logger: (message: string) => void,
     isTimeout: boolean,
   ) => ITaskResponse | Promise<ITaskResponse>;
   private compensateCallback: (
-    task: ITask,
+    task: Task.ITask,
     logger: (message: string) => void,
     isTimeout: boolean,
   ) => ITaskResponse | Promise<ITaskResponse>;
   private runningTasks: {
-    [taskId: string]: ITask;
+    [taskId: string]: Task.ITask;
   } = {};
 
   constructor(
     tasksName: string | string[],
     taskCallback: (
-      task: ITask,
+      task: Task.ITask,
       logger: (message: string) => void,
       isTimeout: boolean,
     ) => ITaskResponse | Promise<ITaskResponse>,
     compensateCallback: (
-      task: ITask,
+      task: Task.ITask,
       logger: (message: string) => void,
       isTimeout: boolean,
     ) => ITaskResponse | Promise<ITaskResponse>,
@@ -243,7 +230,7 @@ export class Worker {
     this.consumer = new KafkaConsumer(
       {
         'bootstrap.servers': pmConfig.kafkaServers,
-        'group.id': `saga-${this.pmConfig.namespace}.client`,
+        'group.id': `melonade-${this.pmConfig.namespace}.client`,
         'enable.auto.commit': 'false',
         ...kafkaConfig,
       },
@@ -282,7 +269,7 @@ export class Worker {
   get health(): {
     consumer: 'connected' | 'disconnected';
     producer: 'connected' | 'disconnected';
-    tasks: { [taskId: string]: ITask };
+    tasks: { [taskId: string]: Task.ITask };
   } {
     return {
       consumer: this.consumer.isConnected() ? 'connected' : 'disconnected',
@@ -293,14 +280,14 @@ export class Worker {
 
   consume = (
     messageNumber: number = this.pmConfig.maximumPollingTasks,
-  ): Promise<ITask[]> => {
+  ): Promise<Task.ITask[]> => {
     return new Promise((resolve: Function, reject: Function) => {
       this.consumer.consume(
         messageNumber,
-        (error: Error, messages: IKafkaConsumerMessage[]) => {
+        (error: Error, messages: Kafka.kafkaConsumerMessage[]) => {
           if (error) return reject(error);
           resolve(
-            messages.map((message: IKafkaConsumerMessage) =>
+            messages.map((message: Kafka.kafkaConsumerMessage) =>
               jsonTryParse(message.value.toString(), undefined),
             ),
           );
@@ -309,9 +296,9 @@ export class Worker {
     });
   };
 
-  updateTask = (task: ITask, result: ITaskResponse) => {
+  updateTask = (task: Task.ITask, result: ITaskResponse) => {
     return this.producer.produce(
-      `${this.pmConfig.namespace}.saga.event`,
+      `melonade.${this.pmConfig.namespace}.event`,
       null,
       Buffer.from(
         JSON.stringify({
@@ -330,29 +317,29 @@ export class Worker {
     return this.consumer.commit();
   };
 
-  private dispatchTask = async (task: ITask, isTimeout: boolean) => {
+  private dispatchTask = async (task: Task.ITask, isTimeout: boolean) => {
     const logger = (logs: string) => {
       this.updateTask(task, {
-        status: TaskStates.Inprogress,
+        status: State.TaskStates.Inprogress,
         logs,
       });
     };
 
     switch (task.type) {
-      case TaskTypes.Task:
+      case Task.TaskTypes.Task:
         return await this.taskCallback(task, logger, isTimeout);
-      case TaskTypes.Compensate:
+      case Task.TaskTypes.Compensate:
         return await this.compensateCallback(task, logger, isTimeout);
       default:
         throw new Error(`Task type: "${task.type}" is invalid`);
     }
   };
 
-  private processTask = async (task: ITask) => {
+  private processTask = async (task: Task.ITask) => {
     const isTimeout = isTaskTimeout(task);
     if (isTimeout && this.pmConfig.processTimeoutTask === false) return;
     this.updateTask(task, {
-      status: TaskStates.Inprogress,
+      status: State.TaskStates.Inprogress,
     });
 
     this.runningTasks[task.taskId] = task;
@@ -362,7 +349,7 @@ export class Worker {
       this.updateTask(task, validateTaskResult(result));
     } catch (error) {
       this.updateTask(task, {
-        status: TaskStates.Failed,
+        status: State.TaskStates.Failed,
         output: {
           error: error.toString(),
         },
@@ -376,6 +363,7 @@ export class Worker {
     try {
       const tasks = await this.consume();
       if (tasks.length > 0) {
+        console.log('found', tasks.length);
         await Promise.all(tasks.map(this.processTask));
         this.commit();
       }

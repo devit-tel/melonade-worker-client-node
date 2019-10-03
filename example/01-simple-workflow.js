@@ -1,4 +1,5 @@
-const { Worker, TaskStates } = require('../build');
+const { Worker } = require('../build');
+const { State } = require('@melonade/melonade-declaration');
 
 const config = require('./config.json');
 
@@ -152,7 +153,7 @@ for (let i = 1; i <= 3; i++) {
     task => {
       console.log(`Processing ${task.taskName} (${task.transactionId})`);
       return {
-        status: TaskStates.Completed,
+        status: State.TaskStates.Completed,
         output: {
           hello: 'world',
           name: task.taskName,
@@ -162,7 +163,7 @@ for (let i = 1; i <= 3; i++) {
     task => {
       console.log(`Compensating ${task.taskName} (${task.transactionId})`);
       return {
-        status: TaskStates.Completed,
+        status: State.TaskStates.Completed,
       };
     },
     config.sagaConfig,

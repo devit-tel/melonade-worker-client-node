@@ -1,6 +1,7 @@
-const { Worker, TaskStates } = require("../build");
+const { Worker } = require('../build');
+const { State } = require('@melonade/melonade-declaration');
 
-const config = require("./config.json");
+const config = require('./config.json');
 
 // const taskDefs = [
 //   {
@@ -152,29 +153,29 @@ const config = require("./config.json");
 let errorCount = 10;
 
 new Worker(
-  "task-2-retryable",
+  'task-2-retryable',
   task => {
     console.log(`Processing ${task.taskName} (${task.transactionId})`);
     if (errorCount > 0) {
       errorCount--;
-      throw new Error("Test error");
+      throw new Error('Test error');
     }
     return {
-      status: TaskStates.Completed,
+      status: State.TaskStates.Completed,
       output: {
-        hello: "world",
-        name: task.taskName
-      }
+        hello: 'world',
+        name: task.taskName,
+      },
     };
   },
   task => {
     console.log(`Compensating ${task.taskName} (${task.transactionId})`);
     return {
-      status: TaskStates.Completed
+      status: TaskStates.Completed,
     };
   },
-  config.sagaConfig
-).consumer.on("ready", () => console.log(`Worker task-1-retryable is ready!`));
+  config.sagaConfig,
+).consumer.on('ready', () => console.log(`Worker task-1-retryable is ready!`));
 
 for (let i = 1; i <= 3; i++) {
   new Worker(
@@ -182,21 +183,21 @@ for (let i = 1; i <= 3; i++) {
     task => {
       console.log(`Processing ${task.taskName} (${task.transactionId})`);
       return {
-        status: TaskStates.Completed,
+        status: State.TaskStates.Completed,
         output: {
-          hello: "world",
-          name: task.taskName
-        }
+          hello: 'world',
+          name: task.taskName,
+        },
       };
     },
     task => {
       console.log(`Compensating ${task.taskName} (${task.transactionId})`);
       return {
-        status: TaskStates.Completed
+        status: State.TaskStates.Completed,
       };
     },
-    config.sagaConfig
-  ).consumer.on("ready", () => console.log(`Worker ${i} is ready!`));
+    config.sagaConfig,
+  ).consumer.on('ready', () => console.log(`Worker ${i} is ready!`));
 }
 
 // Expect result errorCount = 10
