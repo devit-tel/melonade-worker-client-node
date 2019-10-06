@@ -51,16 +51,39 @@ const adminClient = new Admin(
 adminClient.producer.on('ready', () => {
   // setTimeout(() => {
   console.log('start tasks');
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 5000; i++) {
     const transactionId = uuid();
     console.log(`start transaction: ${transactionId}`);
     adminClient.startTransaction(
       transactionId,
       {
-        name: 'test',
-        rev: 'timeout',
+        name: 'TRUE_RYDE',
+        rev: 'phase_1',
       },
-      { hello: 'world' },
+      {
+        passengers: [
+          {
+            _id: 'abc',
+            name: 'some one',
+          },
+        ],
+        pickupLocation: {
+          name: 'siam',
+          lat: 123,
+          lng: 321,
+        },
+        wayPoint: [
+          {
+            name: 'sirom',
+            lat: 234,
+            lng: 432,
+          },
+        ],
+        pricing: {
+          price: 555,
+          ref: 'djakjflajme3',
+        },
+      },
     );
     // adminClient.subscribe(transactionId);
   }
