@@ -93,7 +93,7 @@ new Worker(
     await sleep(10);
 
     // console.log(task.input);
-
+    console.log(`Done ${task.taskName} (${task.transactionId})`);
     return {
       status: State.TaskStates.Completed,
       output: {
@@ -178,6 +178,7 @@ new Worker(
 
     // console.log(task.input);
 
+    console.log(`Done ${task.taskName} (${task.transactionId})`);
     return {
       status: State.TaskStates.Completed,
     };
@@ -253,10 +254,11 @@ new Worker(
 // ----------------
 
 new Worker(
-  'fms_driver_summarize',
+  'oms_summarize',
   async (task, logger) => {
     console.log(`Processing ${task.taskName} (${task.transactionId})`);
 
+    // throw new Error('asddsa');
     // console.log(task.input);
     return {
       status: State.TaskStates.Completed,
@@ -271,6 +273,4 @@ new Worker(
     };
   },
   config.sagaConfig,
-).consumer.on('ready', () =>
-  console.log(`Worker fms_driver_summarize is ready!`),
-);
+).consumer.on('ready', () => console.log(`Worker oms_summarize is ready!`));

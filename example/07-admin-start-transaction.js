@@ -51,7 +51,7 @@ const adminClient = new Admin(
 adminClient.producer.on('ready', () => {
   // setTimeout(() => {
   console.log('start tasks');
-  for (let i = 0; i < 5000; i++) {
+  for (let i = 0; i < 10; i++) {
     const transactionId = uuid();
     console.log(`start transaction: ${transactionId}`);
     adminClient.startTransaction(
@@ -85,6 +85,10 @@ adminClient.producer.on('ready', () => {
         },
       },
     );
+
+    setTimeout(() => {
+      adminClient.cancleTransaction(transactionId);
+    }, 1000);
     // adminClient.subscribe(transactionId);
   }
   // }, 5000);

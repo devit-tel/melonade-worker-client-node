@@ -1,5 +1,11 @@
 import { KafkaConsumer, Producer } from '@nv4re/node-rdkafka';
-import { Task, State, Event, Kafka } from '@melonade/melonade-declaration';
+import {
+  Task,
+  State,
+  Event,
+  Kafka,
+  Command,
+} from '@melonade/melonade-declaration';
 import * as R from 'ramda';
 import { jsonTryParse } from './utils/common';
 import { EventEmitter } from 'events';
@@ -124,10 +130,25 @@ export class Admin extends EventEmitter {
       null,
       Buffer.from(
         JSON.stringify({
-          type: 'START_TRANSACTION',
+          type: Command.CommandTypes.StartTransaction,
           transactionId,
           workflow,
           input,
+        }),
+      ),
+      transactionId,
+    );
+  };
+
+  cancleTransaction = (transactionId: string) => {
+    if (!transactionId) throw new Error('transactionId is required');
+    this.producer.produce(
+      `melonade.${this.adminConfig.namespace}.command`,
+      null,
+      Buffer.from(
+        JSON.stringify({
+          type: Command.CommandTypes.CancelTransaction,
+          transactionId,
         }),
       ),
       transactionId,
