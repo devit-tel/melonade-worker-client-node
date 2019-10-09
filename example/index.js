@@ -1,6 +1,6 @@
-const cluster = require('cluster')
+const cluster = require('cluster');
 
-const RUNNERS = 4
+const RUNNERS = 4;
 
 if (cluster.isMaster) {
   cluster.on('exit', worker => {
@@ -15,11 +15,12 @@ if (cluster.isMaster) {
     cluster.fork();
   }
 } else {
-  require('./01-simple-workflow');
+  // require('./01-simple-workflow');
   // require('./02-parallel');
   // require('./03-decision');
   // require('./04-compensation-workflow');
   // require('./05-compensation-then-retry-workflow');
   // require('./06-compensation-then-retry-workflow-and-task-retry');
   // require('./07-admin-start-transaction'); // Should not run this with > 1 clusters
+  require('./08-taxi-use-case');
 }

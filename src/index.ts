@@ -137,6 +137,7 @@ export class Admin extends EventEmitter {
         }),
       ),
       transactionId,
+      Date.now(),
     );
   };
 
@@ -152,6 +153,7 @@ export class Admin extends EventEmitter {
         }),
       ),
       transactionId,
+      Date.now(),
     );
   };
 
@@ -257,7 +259,17 @@ export class Worker {
       { 'auto.offset.reset': 'earliest' },
     );
     this.producer = new Producer(
-      { 'bootstrap.servers': pmConfig.kafkaServers, ...kafkaConfig },
+      {
+        'compression.type': 'snappy',
+        'enable.idempotence': 'true',
+        'message.send.max.retries': '100000',
+        'socket.keepalive.enable': 'true',
+        'queue.buffering.max.messages': '10000',
+        'queue.buffering.max.ms': '1',
+        'batch.num.messages': '100',
+        'bootstrap.servers': pmConfig.kafkaServers,
+        ...kafkaConfig,
+      },
       {},
     );
 
@@ -330,6 +342,7 @@ export class Worker {
         }),
       ),
       task.transactionId,
+      Date.now(),
     );
   };
 
