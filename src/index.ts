@@ -1,14 +1,14 @@
-import { KafkaConsumer, Producer } from '@nv4re/node-rdkafka';
 import {
-  Task,
-  State,
+  Command,
   Event,
   Kafka,
-  Command,
+  State,
+  Task,
 } from '@melonade/melonade-declaration';
+import { KafkaConsumer, Producer } from '@nv4re/node-rdkafka';
+import { EventEmitter } from 'events';
 import * as R from 'ramda';
 import { jsonTryParse } from './utils/common';
-import { EventEmitter } from 'events';
 
 const DEFAULT_PM_CONFIG = {
   namespace: 'node',
@@ -16,6 +16,7 @@ const DEFAULT_PM_CONFIG = {
   pollingCooldown: 1,
   processTimeoutTask: false,
   autoStart: true,
+  latencyCompensationMs: 10,
 };
 
 export interface ITaskResponse {
@@ -34,6 +35,7 @@ export interface IPmConfig {
   pollingCooldown?: number;
   processTimeoutTask?: boolean;
   autoStart?: boolean;
+  latencyCompensationMs?: number;
 }
 
 export interface IAdminConfig {
@@ -50,8 +52,11 @@ export interface IWorkflowRef {
 const mapTaskNameToTopic = (taskName: string, prefix: string) =>
   `melonade.${prefix}.task.${taskName}`;
 
-const isTaskTimeout = (task: Task.ITask): boolean => {
-  const elapsedTime = Date.now() - task.startTime;
+const isTaskTimeout = (
+  task: Task.ITask,
+  latencyCompensationMs: number = 0,
+): boolean => {
+  const elapsedTime = Date.now() - task.startTime + latencyCompensationMs;
   return (
     (task.ackTimeout > 0 && task.ackTimeout < elapsedTime) ||
     (task.timeout > 0 && task.timeout < elapsedTime)
@@ -369,7 +374,7 @@ export class Worker {
   };
 
   private processTask = async (task: Task.ITask) => {
-    const isTimeout = isTaskTimeout(task);
+    const isTimeout = isTaskTimeout(task, this.pmConfig.latencyCompensationMs);
     if (isTimeout && this.pmConfig.processTimeoutTask === false) return;
     this.updateTask(task, {
       status: State.TaskStates.Inprogress,
