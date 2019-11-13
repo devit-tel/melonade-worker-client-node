@@ -18,7 +18,7 @@
   "author": "NV4RE",
   "license": "Apache-2.0",
   "dependencies": {
-    "@melonade/melonade-declaration": "^0.6.0",
+    "@melonade/melonade-declaration": "^0.6.1",
     "@nv4re/node-rdkafka": "^2.7.2-5",
     "ramda": "^0.26.1",
     "tslib": "~1.10.0"
