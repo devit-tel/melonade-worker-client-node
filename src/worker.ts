@@ -31,6 +31,10 @@ const DEFAULT_WORKER_CONFIG = {
   latencyCompensationMs: 50,
 };
 
+const alwaysCompleteFunction = (): ITaskResponse => ({
+  status: State.TaskStates.Completed,
+});
+
 const mapTaskNameToTopic = (taskName: string, prefix: string) =>
   `melonade.${prefix}.task.${taskName}`;
 
@@ -80,7 +84,7 @@ export class Worker {
     task: Task.ITask,
     logger: (message: string) => void,
     isTimeout: boolean,
-  ) => ITaskResponse | Promise<ITaskResponse>;
+  ) => ITaskResponse | Promise<ITaskResponse> = alwaysCompleteFunction;
   private runningTasks: {
     [taskId: string]: Task.ITask;
   } = {};
