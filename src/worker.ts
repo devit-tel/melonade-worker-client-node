@@ -84,7 +84,7 @@ export class Worker {
     task: Task.ITask,
     logger: (message: string) => void,
     isTimeout: boolean,
-  ) => ITaskResponse | Promise<ITaskResponse> = alwaysCompleteFunction;
+  ) => ITaskResponse | Promise<ITaskResponse>;
   private runningTasks: {
     [taskId: string]: Task.ITask;
   } = {};
@@ -100,9 +100,8 @@ export class Worker {
       task: Task.ITask,
       logger: (message: string) => void,
       isTimeout: boolean,
-    ) => ITaskResponse | Promise<ITaskResponse>,
+    ) => ITaskResponse | Promise<ITaskResponse> = alwaysCompleteFunction,
     workerConfig: IWorkerConfig,
-    kafkaConfig: any = {},
   ) {
     this.taskCallback = taskCallback;
     this.compensateCallback = compensateCallback;
