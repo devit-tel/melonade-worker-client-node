@@ -1,6 +1,6 @@
 {
   "name": "@melonade/melonade-client",
-  "version": "0.6.7",
+  "version": "0.6.8",
   "description": "",
   "engines": {
     "node": ">= 10.13 <11"
