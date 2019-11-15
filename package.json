@@ -1,6 +1,6 @@
 {
   "name": "@melonade/melonade-client",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "description": "",
   "engines": {
     "node": ">= 10.13 <11"
@@ -18,7 +18,7 @@
   "author": "NV4RE",
   "license": "Apache-2.0",
   "dependencies": {
-    "@melonade/melonade-declaration": "^0.6.1",
+    "@melonade/melonade-declaration": "^0.6.3",
     "@nv4re/node-rdkafka": "^2.7.2-5",
     "ramda": "^0.26.1",
     "tslib": "~1.10.0"
