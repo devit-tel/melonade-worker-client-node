@@ -1,6 +1,6 @@
 import { State } from '@melonade/melonade-declaration';
 
-export { Admin } from './admin';
-export { Worker } from './worker';
+export { Admin, IAdminConfig } from './admin';
+export { IWorkerConfig, Worker } from './worker';
 
 export const taskStates = State.TaskStates;
