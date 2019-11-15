@@ -158,6 +158,15 @@ export class Worker {
 
     this.producer.setPollInterval(100);
     this.producer.connect();
+
+    process.on('SIGTERM', () => {
+      this.consumer.disconnect();
+      this.producer.disconnect();
+
+      setTimeout(() => {
+        process.exit(0);
+      }, 1000);
+    });
   }
 
   get health(): {
