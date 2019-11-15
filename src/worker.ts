@@ -102,6 +102,7 @@ export class Worker {
       isTimeout: boolean,
     ) => ITaskResponse | Promise<ITaskResponse> = alwaysCompleteFunction,
     workerConfig: IWorkerConfig,
+    kafkaConfig: any = {},
   ) {
     this.taskCallback = taskCallback;
     this.compensateCallback = compensateCallback;
