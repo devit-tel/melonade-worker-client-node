@@ -10,6 +10,7 @@ export interface IWorkerConfig {
   pollingCooldown?: number;
   processTimeoutTask?: boolean;
   autoStart?: boolean;
+  latencyCompensationMs?: number;
 }
 
 export interface ITaskResponse {
@@ -21,19 +22,23 @@ export interface ITaskResponse {
   logs?: string | string[];
 }
 
-const DEFAULT_PM_CONFIG = {
+const DEFAULT_WORKER_CONFIG = {
   namespace: 'node',
   maximumPollingTasks: 100,
   pollingCooldown: 1,
   processTimeoutTask: false,
   autoStart: true,
+  latencyCompensationMs: 50,
 };
 
 const mapTaskNameToTopic = (taskName: string, prefix: string) =>
   `melonade.${prefix}.task.${taskName}`;
 
-const isTaskTimeout = (task: Task.ITask): boolean => {
-  const elapsedTime = Date.now() - task.startTime;
+const isTaskTimeout = (
+  task: Task.ITask,
+  latencyCompensationMs: number = 0,
+): boolean => {
+  const elapsedTime = Date.now() - task.startTime + latencyCompensationMs;
   return (
     (task.ackTimeout > 0 && task.ackTimeout < elapsedTime) ||
     (task.timeout > 0 && task.timeout < elapsedTime)
@@ -64,7 +69,7 @@ const validateTaskResult = (result: ITaskResponse): ITaskResponse => {
 export class Worker {
   private consumer: KafkaConsumer;
   private producer: Producer;
-  pmConfig: IWorkerConfig;
+  workerConfig: IWorkerConfig;
   private isSubscribed: boolean = false;
   private taskCallback: (
     task: Task.ITask,
@@ -92,20 +97,20 @@ export class Worker {
       logger: (message: string) => void,
       isTimeout: boolean,
     ) => ITaskResponse | Promise<ITaskResponse>,
-    pmConfig: IWorkerConfig,
+    workerConfig: IWorkerConfig,
     kafkaConfig: any = {},
   ) {
     this.taskCallback = taskCallback;
     this.compensateCallback = compensateCallback;
-    this.pmConfig = {
-      ...DEFAULT_PM_CONFIG,
-      ...pmConfig,
+    this.workerConfig = {
+      ...DEFAULT_WORKER_CONFIG,
+      ...workerConfig,
     };
 
     this.consumer = new KafkaConsumer(
       {
-        'bootstrap.servers': pmConfig.kafkaServers,
-        'group.id': `melonade-${this.pmConfig.namespace}.client`,
+        'bootstrap.servers': workerConfig.kafkaServers,
+        'group.id': `melonade-${this.workerConfig.namespace}.client`,
         'enable.auto.commit': 'false',
         ...kafkaConfig,
       },
@@ -120,7 +125,7 @@ export class Worker {
         'queue.buffering.max.messages': '10000',
         'queue.buffering.max.ms': '1',
         'batch.num.messages': '100',
-        'bootstrap.servers': pmConfig.kafkaServers,
+        'bootstrap.servers': workerConfig.kafkaServers,
         ...kafkaConfig,
       },
       {},
@@ -130,21 +135,21 @@ export class Worker {
       if (Array.isArray(tasksName)) {
         this.consumer.subscribe(
           tasksName.map((taskName: string) =>
-            mapTaskNameToTopic(taskName, this.pmConfig.namespace),
+            mapTaskNameToTopic(taskName, this.workerConfig.namespace),
           ),
         );
       } else {
         this.consumer.subscribe([
-          mapTaskNameToTopic(tasksName, this.pmConfig.namespace),
+          mapTaskNameToTopic(tasksName, this.workerConfig.namespace),
         ]);
       }
 
-      if (this.pmConfig.autoStart) {
+      if (this.workerConfig.autoStart) {
         this.subscribe();
       }
     });
 
-    this.consumer.setDefaultConsumeTimeout(this.pmConfig.pollingCooldown);
+    this.consumer.setDefaultConsumeTimeout(this.workerConfig.pollingCooldown);
     this.consumer.connect();
 
     this.producer.setPollInterval(100);
@@ -164,7 +169,7 @@ export class Worker {
   }
 
   consume = (
-    messageNumber: number = this.pmConfig.maximumPollingTasks,
+    messageNumber: number = this.workerConfig.maximumPollingTasks,
   ): Promise<Task.ITask[]> => {
     return new Promise((resolve: Function, reject: Function) => {
       this.consumer.consume(
@@ -183,7 +188,7 @@ export class Worker {
 
   updateTask = (task: Task.ITask, result: ITaskResponse) => {
     return this.producer.produce(
-      `melonade.${this.pmConfig.namespace}.event`,
+      `melonade.${this.workerConfig.namespace}.event`,
       null,
       Buffer.from(
         JSON.stringify({
@@ -222,8 +227,11 @@ export class Worker {
   };
 
   private processTask = async (task: Task.ITask) => {
-    const isTimeout = isTaskTimeout(task);
-    if (isTimeout && this.pmConfig.processTimeoutTask === false) return;
+    const isTimeout = isTaskTimeout(
+      task,
+      this.workerConfig.latencyCompensationMs,
+    );
+    if (isTimeout && this.workerConfig.processTimeoutTask === false) return;
     this.updateTask(task, {
       status: State.TaskStates.Inprogress,
     });

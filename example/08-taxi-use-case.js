@@ -83,17 +83,18 @@ new Worker(
   'tms_trip_create',
   async (task, logger) => {
     console.log(`Processing ${task.taskName} (${task.transactionId})`);
-    logger('Creating trip');
-    await sleep(10);
+    // logger('Creating trip');
+    // await sleep(10);
 
-    logger('Creating task');
-    await sleep(10);
+    // logger('Creating task');
+    // await sleep(10);
 
-    logger('Creating todo');
-    await sleep(10);
+    // logger('Creating todo');
+    // await sleep(10);
 
+    // throw new Error('Test error');
     // console.log(task.input);
-    console.log(`Done ${task.taskName} (${task.transactionId})`);
+    // console.log(`Done ${task.taskName} (${task.transactionId})`);
     return {
       status: State.TaskStates.Completed,
       output: {
@@ -107,14 +108,14 @@ new Worker(
   },
   async (task, logger) => {
     console.log(`Compensating ${task.taskName} (${task.transactionId})`);
-    logger('Cleaning todo');
-    await sleep(10);
+    // logger('Cleaning todo');
+    // // await sleep(10);
 
-    logger('Cleaning task');
-    await sleep(10);
+    // logger('Cleaning task');
+    // // await sleep(10);
 
-    logger('Cleaning trip');
-    await sleep(10);
+    // logger('Cleaning trip');
+    // await sleep(10);
 
     return {
       status: State.TaskStates.Completed,
@@ -129,32 +130,31 @@ const fmsDriverFindWorker = new Worker(
   'fms_driver_find',
   async (task, logger) => {
     console.log(`Processing ${task.taskName} (${task.transactionId})`);
-    logger('Push notification to drivers');
-
-    setTimeout(() => {
-      console.log('Driver accept job');
-      fmsDriverFindWorker.updateTask(task, {
-        status: State.TaskStates.Completed,
-        output: {
-          driver: {
-            _id: 'some-driver-id',
-            name: 'John Felix Anthony Cena Jr.',
-            avarter: 'some-driver-id.jpg',
-            someInfo: 'bla bla',
-          },
-        },
-      });
-    }, 300);
+    // logger('Push notification to drivers');
+    // setTimeout(() => {
+    //   console.log('Driver accept job');
+    //   fmsDriverFindWorker.updateTask(task, {
+    //     status: State.TaskStates.Completed,
+    //     output: {
+    //       driver: {
+    //         _id: 'some-driver-id',
+    //         name: 'John Felix Anthony Cena Jr.',
+    //         avarter: 'some-driver-id.jpg',
+    //         someInfo: 'bla bla',
+    //       },
+    //     },
+    //   });
+    // }, 100);
 
     // console.log(task.input);
     return {
-      status: State.TaskStates.Inprogress,
+      status: State.TaskStates.Completed,
     };
   },
   async (task, logger) => {
     console.log(`Compensating ${task.taskName} (${task.transactionId})`);
     logger('Cleaning driver');
-    await sleep(10);
+    // await sleep(10);
 
     return {
       status: State.TaskStates.Completed,
@@ -173,12 +173,12 @@ new Worker(
   'tms_driver_assign',
   async (task, logger) => {
     console.log(`Processing ${task.taskName} (${task.transactionId})`);
-    logger('Add driver to tasks');
-    await sleep(10);
+    // logger('Add driver to tasks');
+    // await sleep(10);
 
     // console.log(task.input);
 
-    console.log(`Done ${task.taskName} (${task.transactionId})`);
+    // console.log(`Done ${task.taskName} (${task.transactionId})`);
     return {
       status: State.TaskStates.Completed,
     };
@@ -187,7 +187,7 @@ new Worker(
     console.log(`Compensating ${task.taskName} (${task.transactionId})`);
     // Or just skip
     logger('Cleaning driver from tasks');
-    await sleep(10);
+    // await sleep(10);
 
     return {
       status: State.TaskStates.Completed,
@@ -202,43 +202,43 @@ new Worker(
   'tms_task_run',
   async (task, logger) => {
     console.log(`Processing ${task.taskName} (${task.transactionId})`);
-    logger('Run task of', task.input.tripId);
-    await sleep(10);
+    // logger('Run task of', task.input.tripId);
+    // await sleep(10);
 
-    setTimeout(() => {
-      console.log('Driver on the way');
-      fmsDriverFindWorker.updateTask(task, {
-        status: State.TaskStates.Inprogress,
-        logs: 'Driver on the way',
-      });
-    }, 1000);
+    // setTimeout(() => {
+    //   console.log('Driver on the way');
+    //   fmsDriverFindWorker.updateTask(task, {
+    //     status: State.TaskStates.Inprogress,
+    //     logs: 'Driver on the way',
+    //   });
+    // }, 1000);
 
-    setTimeout(() => {
-      console.log('Driver at pickup point');
-      fmsDriverFindWorker.updateTask(task, {
-        status: State.TaskStates.Inprogress,
-        logs: 'Driver at pickup point',
-      });
-    }, 3000);
+    // setTimeout(() => {
+    //   console.log('Driver at pickup point');
+    //   fmsDriverFindWorker.updateTask(task, {
+    //     status: State.TaskStates.Inprogress,
+    //     logs: 'Driver at pickup point',
+    //   });
+    // }, 3000);
 
-    setTimeout(() => {
-      console.log('Passenger hopped in');
-      fmsDriverFindWorker.updateTask(task, {
-        status: State.TaskStates.Inprogress,
-        logs: 'Passenger hopped in',
-      });
-    }, 4000);
+    // setTimeout(() => {
+    //   console.log('Passenger hopped in');
+    //   fmsDriverFindWorker.updateTask(task, {
+    //     status: State.TaskStates.Inprogress,
+    //     logs: 'Passenger hopped in',
+    //   });
+    // }, 4000);
 
-    setTimeout(() => {
-      console.log('Driver dropped passenger');
-      fmsDriverFindWorker.updateTask(task, {
-        status: State.TaskStates.Completed,
-        logs: 'Driver dropped passenger',
-      });
-    }, 5000);
+    // setTimeout(() => {
+    //   console.log('Driver dropped passenger');
+    //   fmsDriverFindWorker.updateTask(task, {
+    //     status: State.TaskStates.Completed,
+    //     logs: 'Driver dropped passenger',
+    //   });
+    // }, 5000);
 
     return {
-      status: State.TaskStates.Inprogress,
+      status: State.TaskStates.Completed,
     };
   },
   async (task, logger) => {
@@ -258,7 +258,7 @@ new Worker(
   async (task, logger) => {
     console.log(`Processing ${task.taskName} (${task.transactionId})`);
 
-    // throw new Error('asddsa');
+    throw new Error('asddsa');
     // console.log(task.input);
     return {
       status: State.TaskStates.Completed,

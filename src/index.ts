@@ -1,2 +1,2 @@
-export { Admin, IAdminConfig } from './admin';
-export { IWorkerConfig, Worker } from './worker';
+export { Admin } from './admin';
+export { Worker } from './worker';
