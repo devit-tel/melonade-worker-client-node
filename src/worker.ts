@@ -1,5 +1,5 @@
 import { Kafka, State, Task } from '@melonade/melonade-declaration';
-import { KafkaConsumer, Producer } from '@nv4re/node-rdkafka';
+import { KafkaConsumer, Producer } from 'node-rdkafka';
 import * as R from 'ramda';
 import { jsonTryParse } from './utils/common';
 

@@ -4,8 +4,8 @@ import {
   Kafka,
   WorkflowDefinition,
 } from '@melonade/melonade-declaration';
-import { KafkaConsumer, Producer } from '@nv4re/node-rdkafka';
 import { EventEmitter } from 'events';
+import { KafkaConsumer, Producer } from 'node-rdkafka';
 import { jsonTryParse } from './utils/common';
 
 export interface IAdminConfig {

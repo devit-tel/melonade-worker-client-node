@@ -1,0 +1,28 @@
+name: On tags
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  push-docker:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v1
+      - name: Get the version
+        id: get_version
+        run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
+      - name: Install
+        uses: actions/setup-node@v1
+        with:
+          node-version: 10.x
+      - name: npm install and publish
+        run: |
+          npm config set //registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN
+          npm version ${{ steps.get_version.outputs.VERSION }} --no-git-tag-version
+          npm install
+          npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
