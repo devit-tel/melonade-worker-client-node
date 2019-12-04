@@ -66,8 +66,9 @@ export class Admin extends EventEmitter {
 
   startTransaction = (
     transactionId: string,
-    workflow: WorkflowDefinition.IWorkflowRef,
+    workflowRef: WorkflowDefinition.IWorkflowRef,
     input: any,
+    tags: string[] = [],
   ) => {
     if (!transactionId) throw new Error('transactionId is required');
     this.producer.produce(
@@ -77,9 +78,36 @@ export class Admin extends EventEmitter {
         JSON.stringify({
           type: Command.CommandTypes.StartTransaction,
           transactionId,
-          workflow,
+          workflowRef,
           input,
-        }),
+          tags,
+        } as Command.IStartTransactionCommand),
+      ),
+      transactionId,
+      Date.now(),
+    );
+  };
+
+  startTransactionByArbitraryWorkflowDefinition = (
+    transactionId: string,
+    workflowDefinition: WorkflowDefinition.IWorkflowDefinition,
+    input: any,
+    tags: string[] = [],
+  ) => {
+    if (!transactionId) throw new Error('transactionId is required');
+    // Check if workflowDefinition are valid
+    new WorkflowDefinition.WorkflowDefinition(workflowDefinition);
+    this.producer.produce(
+      `melonade.${this.adminConfig.namespace}.command`,
+      null,
+      Buffer.from(
+        JSON.stringify({
+          type: Command.CommandTypes.StartTransaction,
+          transactionId,
+          workflow: workflowDefinition,
+          input,
+          tags,
+        } as Command.IStartTransactionCommand),
       ),
       transactionId,
       Date.now(),
