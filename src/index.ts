@@ -1,6 +1,8 @@
-import { State } from '@melonade/melonade-declaration';
+import { State, Task } from '@melonade/melonade-declaration';
 
 export { Admin, IAdminConfig } from './admin';
-export { IWorkerConfig, Worker } from './worker';
+export { ITaskResponse, IWorkerConfig, Worker } from './worker';
 
-export const taskStates = State.TaskStates;
+export const TaskStates = State.TaskStates;
+
+export interface ITask extends Task.ITask {}
