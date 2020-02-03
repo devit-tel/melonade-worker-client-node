@@ -20,7 +20,7 @@ export class Admin extends EventEmitter {
   private adminConfig: IAdminConfig;
   private watchingTransactions: string[] = [];
 
-  constructor(adminConfig: IAdminConfig, kafkaConfig: any) {
+  constructor(adminConfig: IAdminConfig, kafkaConfig: object = {}) {
     super();
 
     this.adminConfig = adminConfig;
