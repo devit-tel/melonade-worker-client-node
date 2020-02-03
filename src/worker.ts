@@ -1,4 +1,5 @@
 import { Kafka, State, Task } from '@melonade/melonade-declaration';
+import { EventEmitter } from 'events';
 import { KafkaConsumer, Producer } from 'node-rdkafka';
 import * as R from 'ramda';
 import { jsonTryParse } from './utils/common';
@@ -70,7 +71,7 @@ const validateTaskResult = (result: ITaskResponse): ITaskResponse => {
 };
 
 // Maybe use kafka streamAPI
-export class Worker {
+export class Worker extends EventEmitter {
   private consumer: KafkaConsumer;
   private producer: Producer;
   workerConfig: IWorkerConfig;
@@ -104,6 +105,8 @@ export class Worker {
     workerConfig: IWorkerConfig,
     kafkaConfig: any = {},
   ) {
+    super();
+
     this.taskCallback = taskCallback;
     this.compensateCallback = compensateCallback;
     this.workerConfig = {
@@ -136,6 +139,10 @@ export class Worker {
     );
 
     this.consumer.on('ready', () => {
+      if (this.isWorkerClientReady()) {
+        this.emit('ready');
+      }
+
       if (Array.isArray(tasksName)) {
         this.consumer.subscribe(
           tasksName.map((taskName: string) =>
@@ -152,16 +159,19 @@ export class Worker {
         this.subscribe();
       }
     });
-
     this.consumer.setDefaultConsumeTimeout(this.workerConfig.pollingCooldown);
     this.consumer.connect();
 
+    this.producer.on('ready', () => {
+      if (this.isWorkerClientReady()) {
+        this.emit('ready');
+      }
+    });
     this.producer.setPollInterval(100);
     this.producer.connect();
 
     process.on('SIGTERM', () => {
-      this.consumer.disconnect();
-      this.producer.disconnect();
+      this.consumer.unsubscribe();
 
       setTimeout(() => {
         process.exit(0);
@@ -180,6 +190,10 @@ export class Worker {
       tasks: this.runningTasks,
     };
   }
+
+  private isWorkerClientReady = (): boolean => {
+    return this.producer.isConnected() && this.consumer.isConnected();
+  };
 
   consume = (
     messageNumber: number = this.workerConfig.maximumPollingTasks,
@@ -244,7 +258,10 @@ export class Worker {
       task,
       this.workerConfig.latencyCompensationMs,
     );
-    if (isTimeout && this.workerConfig.processTimeoutTask === false) return;
+    if (isTimeout && this.workerConfig.processTimeoutTask === false) {
+      this.emit('task-timeout', task);
+      return;
+    }
     this.updateTask(task, {
       status: State.TaskStates.Inprogress,
     });
