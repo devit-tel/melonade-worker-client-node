@@ -11,7 +11,7 @@ import { jsonTryParse } from './utils/common';
 export interface IAdminConfig {
   kafkaServers: string;
   namespace?: string;
-  adminId: string;
+  adminId?: string;
 }
 
 export class Admin extends EventEmitter {
