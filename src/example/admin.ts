@@ -8,7 +8,7 @@ const adminClient = new Admin({
   namespace,
 });
 
-adminClient.on('ready', () => {
+adminClient.once('ready', () => {
   const transactionId = new Date().toISOString();
   console.log(`Starting transactionId: ${transactionId}`);
 
