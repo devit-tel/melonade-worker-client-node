@@ -42,7 +42,7 @@ export class Admin extends EventEmitter {
         this.poll();
       });
 
-      this.consumer.setDefaultConsumeTimeout(1);
+      this.consumer.setDefaultConsumeTimeout(10);
       this.consumer.connect();
     }
 
