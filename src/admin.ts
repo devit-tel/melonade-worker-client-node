@@ -15,7 +15,7 @@ export interface IAdminConfig {
 }
 
 export class Admin extends EventEmitter {
-  consumer: KafkaConsumer;
+  consumer?: KafkaConsumer;
   producer: Producer;
   private adminConfig: IAdminConfig;
   private watchingTransactions: string[] = [];
@@ -36,6 +36,10 @@ export class Admin extends EventEmitter {
       );
 
       this.consumer.on('ready', () => {
+        if (this.isAdminClientReady()) {
+          this.emit('ready');
+        }
+
         this.consumer.subscribe([
           `melonade.${this.adminConfig.namespace}.store`,
         ]);
@@ -51,18 +55,31 @@ export class Admin extends EventEmitter {
       {},
     );
 
+    this.producer.on('ready', () => {
+      if (this.isAdminClientReady()) {
+        this.emit('ready');
+      }
+    });
+
     this.producer.setPollInterval(100);
     this.producer.connect();
 
     process.on('SIGTERM', () => {
-      this.consumer.disconnect();
-      this.producer.disconnect();
-
+      if (adminConfig.adminId) {
+        this.consumer.unsubscribe();
+      }
       setTimeout(() => {
         process.exit(0);
       }, 1000);
     });
   }
+
+  private isAdminClientReady = (): boolean => {
+    if (this.adminConfig.adminId) {
+      return this.producer.isConnected() && this.consumer.isConnected();
+    }
+    return this.producer.isConnected();
+  };
 
   startTransaction = (
     transactionId: string,
