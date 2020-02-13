@@ -202,12 +202,15 @@ export class Worker extends EventEmitter {
       this.consumer.consume(
         messageNumber,
         (error: Error, messages: Kafka.kafkaConsumerMessage[]) => {
-          if (error) return reject(error);
-          resolve(
-            messages.map((message: Kafka.kafkaConsumerMessage) =>
-              jsonTryParse(message.value.toString(), undefined),
-            ),
-          );
+          if (error) {
+            setTimeout(() => reject(error), 1000);
+          } else {
+            resolve(
+              messages.map((message: Kafka.kafkaConsumerMessage) =>
+                jsonTryParse(message.value.toString(), undefined),
+              ),
+            );
+          }
         },
       );
     });
