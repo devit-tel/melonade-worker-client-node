@@ -128,7 +128,6 @@ export class Worker extends EventEmitter {
         'compression.type': 'snappy',
         'enable.idempotence': 'true',
         retries: '10000000',
-        'batch.size': '16384',
         'socket.keepalive.enable': 'true',
         'queue.buffering.max.messages': '100000',
         'queue.buffering.max.ms': '1',
