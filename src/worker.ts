@@ -23,6 +23,11 @@ export interface ITaskResponse {
   logs?: string | string[];
 }
 
+export interface ITaskRef {
+  transactionId: string;
+  taskId: string;
+}
+
 const DEFAULT_WORKER_CONFIG = {
   namespace: 'node',
   maximumPollingTasks: 100,
@@ -216,7 +221,7 @@ export class Worker extends EventEmitter {
     });
   };
 
-  updateTask = (task: Task.ITask, result: ITaskResponse) => {
+  updateTask = (task: ITaskRef, result: ITaskResponse) => {
     return this.producer.produce(
       `melonade.${this.workerConfig.namespace}.event`,
       null,
