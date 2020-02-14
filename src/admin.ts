@@ -68,9 +68,9 @@ export class Admin extends EventEmitter {
       if (adminConfig.adminId) {
         this.consumer.unsubscribe();
       }
-      setTimeout(() => {
-        process.exit(0);
-      }, 1000);
+      // setTimeout(() => {
+      //   process.exit(0);
+      // }, 1000);
     });
   }
 
