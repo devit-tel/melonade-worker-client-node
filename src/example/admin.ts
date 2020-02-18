@@ -9,16 +9,19 @@ const adminClient = new Admin({
 });
 
 adminClient.once('ready', () => {
-  const transactionId = new Date().toISOString();
-  console.log(`Starting transactionId: ${transactionId}`);
+  const now = new Date().toISOString();
 
-  adminClient.startTransaction(
-    transactionId,
-    {
-      name: 'simple',
-      rev: '1',
-    },
-    {},
-    ['demo', 'example-tag'],
-  );
+  for (const transactionNumber in new Array(1).fill(null)) {
+    const transactionId = `sample-${transactionNumber}-${now}`;
+    console.log(`Starting transactionId: ${transactionId}`);
+    adminClient.startTransaction(
+      transactionId,
+      {
+        name: 'simple',
+        rev: '1',
+      },
+      {},
+      ['demo', 'example-tag'],
+    );
+  }
 });
