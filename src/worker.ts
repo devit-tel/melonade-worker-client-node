@@ -1,4 +1,4 @@
-import { Kafka, State, Task } from '@melonade/melonade-declaration';
+import { Event, Kafka, State, Task } from '@melonade/melonade-declaration';
 import { EventEmitter } from 'events';
 import { KafkaConsumer, Producer } from 'node-rdkafka';
 import * as R from 'ramda';
@@ -21,6 +21,7 @@ export interface ITaskResponse {
     | State.TaskStates.Failed;
   output?: any;
   logs?: string | string[];
+  doNotRetry?: boolean;
 }
 
 export interface ITaskRef {
@@ -232,7 +233,9 @@ export class Worker extends EventEmitter {
           status: result.status,
           output: result.output,
           logs: result.logs,
-        }),
+          isSystem: false,
+          doNotRetry: result.doNotRetry,
+        } as Event.ITaskUpdate),
       ),
       task.transactionId,
       Date.now(),
