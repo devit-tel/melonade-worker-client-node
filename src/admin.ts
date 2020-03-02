@@ -7,6 +7,7 @@ import {
 import { EventEmitter } from 'events';
 import { KafkaConsumer, Producer } from 'node-rdkafka';
 import { jsonTryParse } from './utils/common';
+import { ITaskRef, ITaskResponse } from './worker';
 
 export interface IAdminConfig {
   kafkaServers: string;
@@ -143,6 +144,26 @@ export class Admin extends EventEmitter {
         }),
       ),
       transactionId,
+      Date.now(),
+    );
+  };
+
+  updateTask = (task: ITaskRef, result: ITaskResponse) => {
+    return this.producer.produce(
+      `melonade.${this.adminConfig.namespace}.event`,
+      null,
+      Buffer.from(
+        JSON.stringify({
+          transactionId: task.transactionId,
+          taskId: task.taskId,
+          status: result.status,
+          output: result.output,
+          logs: result.logs,
+          isSystem: false,
+          doNotRetry: result.doNotRetry,
+        } as Event.ITaskUpdate),
+      ),
+      task.transactionId,
       Date.now(),
     );
   };
