@@ -13,6 +13,53 @@ export interface IAdminConfig {
   kafkaServers: string;
   namespace?: string;
   adminId?: string;
+  subscribeToAllTransaction?: boolean;
+}
+
+export enum EventTypes {
+  TransactionEvent = 'TRANSACTION_EVENT',
+  TransactionFalseEvent = 'TRANSACTION_FALSE_EVENT',
+  WorkflowEvent = 'WORKFLOW_EVENT',
+  WorkflowFalseEvent = 'WORKFLOW_FALSE_EVENT',
+  TaskEvent = 'TASK_EVENT',
+  TaskFalseEvent = 'TASK_FALSE_EVENT',
+  SystemEvent = 'SYSTEM_EVENT',
+  SystemFalseEvent = 'SYSTEM_FALSE_EVENT',
+}
+
+export declare interface Admin {
+  on(
+    event: EventTypes.TransactionEvent,
+    listener: (event: Event.ITransactionEvent) => void,
+  ): this;
+  on(
+    event: EventTypes.WorkflowEvent,
+    listener: (event: Event.IWorkflowEvent) => void,
+  ): this;
+  on(
+    event: EventTypes.TaskEvent,
+    listener: (event: Event.ITaskEvent) => void,
+  ): this;
+  on(
+    event: EventTypes.TransactionFalseEvent,
+    listener: (event: Event.ITransactionErrorEvent) => void,
+  ): this;
+  on(
+    event: EventTypes.WorkflowFalseEvent,
+    listener: (event: Event.IWorkflowErrorEvent) => void,
+  ): this;
+  on(
+    event: EventTypes.TaskFalseEvent,
+    listener: (event: Event.ITaskErrorEvent) => void,
+  ): this;
+  on(
+    event: EventTypes.SystemFalseEvent,
+    listener: (event: Event.ISystemErrorEvent) => void,
+  ): this;
+  on(
+    event: EventTypes.SystemFalseEvent,
+    listener: (event: Event.ISystemErrorEvent) => void,
+  ): this;
 }
 
 export class Admin extends EventEmitter {
@@ -192,8 +239,36 @@ export class Admin extends EventEmitter {
       const events = await this.consume();
       if (events.length > 0) {
         for (const event of events) {
-          if (this.watchingTransactions.includes(event.transactionId)) {
+          if (
+            this.adminConfig.subscribeToAllTransaction ||
+            this.watchingTransactions.includes(event.transactionId)
+          ) {
             this.emit(event.type, event);
+            if (event.isError === true) {
+              switch (event.type) {
+                case 'TRANSACTION':
+                  this.emit(EventTypes.TransactionFalseEvent, event);
+                  break;
+                case 'WORKFLOW':
+                  this.emit(EventTypes.WorkflowFalseEvent, event);
+                  break;
+                case 'TASK':
+                  this.emit(EventTypes.TaskFalseEvent, event);
+                  break;
+              }
+            } else {
+              switch (event.type) {
+                case 'TRANSACTION':
+                  this.emit(EventTypes.TransactionEvent, event);
+                  break;
+                case 'WORKFLOW':
+                  this.emit(EventTypes.WorkflowEvent, event);
+                  break;
+                case 'TASK':
+                  this.emit(EventTypes.TaskEvent, event);
+                  break;
+              }
+            }
           }
         }
         this.consumer.commit();

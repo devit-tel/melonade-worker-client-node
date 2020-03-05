@@ -1,5 +1,15 @@
 import { State, Task } from '@melonade/melonade-declaration';
 
+export {
+  Command,
+  Event,
+  State,
+  Task,
+  TaskDefinition,
+  Transaction,
+  Workflow,
+  WorkflowDefinition,
+} from '@melonade/melonade-declaration';
 export { Admin, IAdminConfig } from './admin';
 export { ITaskRef, ITaskResponse, IWorkerConfig, Worker } from './worker';
 
