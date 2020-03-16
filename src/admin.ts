@@ -169,7 +169,7 @@ export class Admin extends EventEmitter {
         JSON.stringify({
           type: Command.CommandTypes.StartTransaction,
           transactionId,
-          workflow: workflowDefinition,
+          workflowDefinition,
           input,
           tags,
         } as Command.IStartTransactionCommand),
