@@ -7,19 +7,34 @@ const namespace = process.env['MELONADE_NAMESPACE'];
 for (const forkID in new Array(1).fill(null)) {
   for (const workerId of [1, 2, 3]) {
     const worker = new Worker(
+      // task name
       `t${workerId}`,
-      (task: Task.ITask) => {
+
+      // process task
+      (task, _logger, _isTimeOut, updateTask) => {
+        setTimeout(() => {
+          updateTask(task, {
+            status: State.TaskStates.Completed,
+          });
+
+          console.log(`Async Completed ${task.taskName}`);
+        }, 5000);
+
         console.log(`Processing ${task.taskName}`);
         return {
-          status: State.TaskStates.Completed,
+          status: State.TaskStates.Inprogress,
         };
       },
-      (task: Task.ITask) => {
+
+      // compensate task
+      task => {
         console.log(`Compenstating ${task.taskName}`);
         return {
           status: State.TaskStates.Completed,
         };
       },
+
+      // configs
       {
         kafkaServers,
         namespace,
