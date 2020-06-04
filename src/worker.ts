@@ -29,6 +29,10 @@ export interface ITaskRef {
   taskId: string;
 }
 
+export interface IUpdateTask {
+  (task: ITaskRef, result: ITaskResponse): void;
+}
+
 const DEFAULT_WORKER_CONFIG = {
   namespace: 'node',
   maximumPollingTasks: 100,
@@ -86,11 +90,13 @@ export class Worker extends EventEmitter {
     task: Task.ITask,
     logger: (message: string) => void,
     isTimeout: boolean,
+    updateTask: IUpdateTask,
   ) => ITaskResponse | Promise<ITaskResponse>;
   private compensateCallback: (
     task: Task.ITask,
     logger: (message: string) => void,
     isTimeout: boolean,
+    updateTask: IUpdateTask,
   ) => ITaskResponse | Promise<ITaskResponse>;
   private runningTasks: {
     [taskId: string]: Task.ITask;
@@ -102,11 +108,13 @@ export class Worker extends EventEmitter {
       task: Task.ITask,
       logger: (message: string) => void,
       isTimeout: boolean,
+      updateTask: IUpdateTask,
     ) => ITaskResponse | Promise<ITaskResponse>,
     compensateCallback: (
       task: Task.ITask,
       logger: (message: string) => void,
       isTimeout: boolean,
+      updateTask: IUpdateTask,
     ) => ITaskResponse | Promise<ITaskResponse> = alwaysCompleteFunction,
     workerConfig: IWorkerConfig,
     kafkaConfig: any = {},
@@ -256,9 +264,19 @@ export class Worker extends EventEmitter {
 
     switch (task.type) {
       case Task.TaskTypes.Task:
-        return await this.taskCallback(task, logger, isTimeout);
+        return await this.taskCallback(
+          task,
+          logger,
+          isTimeout,
+          this.updateTask,
+        );
       case Task.TaskTypes.Compensate:
-        return await this.compensateCallback(task, logger, isTimeout);
+        return await this.compensateCallback(
+          task,
+          logger,
+          isTimeout,
+          this.updateTask,
+        );
       default:
         throw new Error(`Task type: "${task.type}" is invalid`);
     }
