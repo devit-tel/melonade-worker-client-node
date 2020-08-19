@@ -12,6 +12,7 @@ export interface IWorkerConfig {
   processTimeoutTask?: boolean;
   autoStart?: boolean;
   latencyCompensationMs?: number;
+  trackingRunningTasks?: boolean;
 }
 
 export interface ITaskResponse {
@@ -40,7 +41,8 @@ const DEFAULT_WORKER_CONFIG = {
   processTimeoutTask: false,
   autoStart: true,
   latencyCompensationMs: 50,
-};
+  trackingRunningTasks: false,
+} as IWorkerConfig;
 
 const alwaysCompleteFunction = (): ITaskResponse => ({
   status: State.TaskStates.Completed,
@@ -295,20 +297,28 @@ export class Worker extends EventEmitter {
       status: State.TaskStates.Inprogress,
     });
 
-    this.runningTasks[task.taskId] = task;
+    if (this.workerConfig.trackingRunningTasks) {
+      this.runningTasks[task.taskId] = task;
+    }
 
     try {
       const result = await this.dispatchTask(task, isTimeout);
       this.updateTask(task, validateTaskResult(result));
     } catch (error) {
-      this.updateTask(task, {
-        status: State.TaskStates.Failed,
-        output: {
-          error: error.toString(),
-        },
-      });
+      try {
+        this.updateTask(task, {
+          status: State.TaskStates.Failed,
+          output: {
+            error: error.toString(),
+          },
+        });
+      } catch (error) {
+        console.warn(error);
+      }
     } finally {
-      delete this.runningTasks[task.taskId];
+      if (this.workerConfig.trackingRunningTasks) {
+        delete this.runningTasks[task.taskId];
+      }
     }
   };
 
