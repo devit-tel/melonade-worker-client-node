@@ -186,7 +186,7 @@ export class Worker extends EventEmitter {
     this.producer.setPollInterval(100);
     this.producer.connect();
 
-    process.on('SIGTERM', () => {
+    process.once('SIGTERM', () => {
       this.consumer.unsubscribe();
 
       // setTimeout(() => {
