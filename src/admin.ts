@@ -60,6 +60,7 @@ export declare interface Admin {
     event: EventTypes.SystemFalseEvent,
     listener: (event: Event.ISystemErrorEvent) => void,
   ): this;
+  on(event: 'ready', listener: () => void): this;
 }
 
 export class Admin extends EventEmitter {
