@@ -5,7 +5,12 @@ import {
   WorkflowDefinition,
 } from '@melonade/melonade-declaration';
 import { EventEmitter } from 'events';
-import { KafkaConsumer, Producer } from 'node-rdkafka';
+import {
+  KafkaConsumer,
+  LibrdKafkaError,
+  Message,
+  Producer,
+} from 'node-rdkafka';
 import { jsonTryParse } from './utils/common';
 import { ITaskRef, ITaskResponse } from './worker';
 
@@ -78,7 +83,7 @@ export class Admin extends EventEmitter {
         {
           'bootstrap.servers': adminConfig.kafkaServers,
           'group.id': adminConfig.adminId,
-          'enable.auto.commit': 'true',
+          'enable.auto.commit': true,
           ...kafkaConfig,
         },
         { 'auto.offset.reset': 'latest' }, //Don't poll old events
@@ -220,7 +225,7 @@ export class Admin extends EventEmitter {
     return new Promise((resolve: Function, reject: Function) => {
       this.consumer.consume(
         messageNumber,
-        (error: Error, messages: Kafka.kafkaConsumerMessage[]) => {
+        (error: LibrdKafkaError, messages: Message[]) => {
           if (error) {
             setTimeout(() => reject(error), 1000);
           } else {

@@ -1,6 +1,11 @@
 import { Event, Kafka, State, Task } from '@melonade/melonade-declaration';
 import { EventEmitter } from 'events';
-import { KafkaConsumer, Producer } from 'node-rdkafka';
+import {
+  KafkaConsumer,
+  LibrdKafkaError,
+  Message,
+  Producer,
+} from 'node-rdkafka';
 import * as R from 'ramda';
 import { jsonTryParse } from './utils/common';
 
@@ -217,7 +222,7 @@ export class Worker extends EventEmitter {
     return new Promise((resolve: Function, reject: Function) => {
       this.consumer.consume(
         messageNumber,
-        (error: Error, messages: Kafka.kafkaConsumerMessage[]) => {
+        (error: LibrdKafkaError, messages: Message[]) => {
           if (error) {
             setTimeout(() => reject(error), 1000);
           } else {
