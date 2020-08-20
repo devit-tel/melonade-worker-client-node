@@ -1,6 +1,7 @@
 import { Event, Kafka, State, Task } from '@melonade/melonade-declaration';
 import { EventEmitter } from 'events';
 import {
+  ConsumerGlobalConfig,
   KafkaConsumer,
   LibrdKafkaError,
   Message,
@@ -124,7 +125,7 @@ export class Worker extends EventEmitter {
       updateTask: IUpdateTask,
     ) => ITaskResponse | Promise<ITaskResponse> = alwaysCompleteFunction,
     workerConfig: IWorkerConfig,
-    kafkaConfig: any = {},
+    kafkaConfig: ConsumerGlobalConfig = {},
   ) {
     super();
 
@@ -139,7 +140,7 @@ export class Worker extends EventEmitter {
       {
         'bootstrap.servers': workerConfig.kafkaServers,
         'group.id': `melonade-${this.workerConfig.namespace}.client`,
-        'enable.auto.commit': 'false',
+        'enable.auto.commit': false,
         ...kafkaConfig,
       },
       { 'auto.offset.reset': 'earliest' },
@@ -147,12 +148,12 @@ export class Worker extends EventEmitter {
     this.producer = new Producer(
       {
         'compression.type': 'snappy',
-        'enable.idempotence': 'true',
-        retries: '10000000',
-        'socket.keepalive.enable': 'true',
-        'queue.buffering.max.messages': '100000',
-        'queue.buffering.max.ms': '1',
-        'batch.num.messages': '10000',
+        'enable.idempotence': true,
+        retries: 100,
+        'socket.keepalive.enable': true,
+        'queue.buffering.max.messages': 100000,
+        'queue.buffering.max.ms': 1,
+        'batch.num.messages': 10000,
         'bootstrap.servers': workerConfig.kafkaServers,
         ...kafkaConfig,
       },

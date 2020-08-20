@@ -6,10 +6,12 @@ import {
 } from '@melonade/melonade-declaration';
 import { EventEmitter } from 'events';
 import {
+  ConsumerGlobalConfig,
   KafkaConsumer,
   LibrdKafkaError,
   Message,
   Producer,
+  ProducerGlobalConfig,
 } from 'node-rdkafka';
 import { jsonTryParse } from './utils/common';
 import { ITaskRef, ITaskResponse } from './worker';
@@ -74,7 +76,10 @@ export class Admin extends EventEmitter {
   private adminConfig: IAdminConfig;
   private watchingTransactions: string[] = [];
 
-  constructor(adminConfig: IAdminConfig, kafkaConfig: object = {}) {
+  constructor(
+    adminConfig: IAdminConfig,
+    kafkaConfig: ConsumerGlobalConfig | ProducerGlobalConfig = {},
+  ) {
     super();
 
     this.adminConfig = adminConfig;
