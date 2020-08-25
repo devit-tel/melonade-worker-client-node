@@ -263,8 +263,9 @@ export class Worker extends EventEmitter {
   };
 
   private dispatchTask = async (task: Task.ITask, isTimeout: boolean) => {
+    const t = R.clone(task);
     const logger = (logs: string) => {
-      this.updateTask(task, {
+      this.updateTask(t, {
         status: State.TaskStates.Inprogress,
         logs,
       });
@@ -272,15 +273,10 @@ export class Worker extends EventEmitter {
 
     switch (task.type) {
       case Task.TaskTypes.Task:
-        return await this.taskCallback(
-          task,
-          logger,
-          isTimeout,
-          this.updateTask,
-        );
+        return await this.taskCallback(t, logger, isTimeout, this.updateTask);
       case Task.TaskTypes.Compensate:
         return await this.compensateCallback(
-          task,
+          t,
           logger,
           isTimeout,
           this.updateTask,
@@ -335,9 +331,15 @@ export class Worker extends EventEmitter {
         await Promise.all(tasks.map(this.processTask));
         this.commit();
       }
+    } catch (err) {
+      console.log(err);
+      // In case of error delay 1s before retry
+      if (this.isSubscribed) {
+        setTimeout(this.poll, 1000);
+      }
+      return;
     } finally {
       // In case of consume error
-
       // Check if still isSubscribed
       if (this.isSubscribed) {
         setImmediate(this.poll);
