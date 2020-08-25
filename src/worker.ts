@@ -148,7 +148,7 @@ export class Worker extends EventEmitter {
     this.producer = new Producer(
       {
         'compression.type': 'snappy',
-        'enable.idempotence': true,
+        'enable.idempotence': false,
         retries: 100,
         'socket.keepalive.enable': true,
         'queue.buffering.max.messages': 100000,
