@@ -109,6 +109,7 @@ export class Worker extends EventEmitter {
   private runningTasks: {
     [taskId: string]: Task.ITask;
   } = {};
+  private tasksName: string | string[];
 
   constructor(
     tasksName: string | string[],
@@ -129,6 +130,7 @@ export class Worker extends EventEmitter {
   ) {
     super();
 
+    this.tasksName = tasksName;
     this.taskCallback = taskCallback;
     this.compensateCallback = compensateCallback;
     this.workerConfig = {
@@ -315,7 +317,7 @@ export class Worker extends EventEmitter {
           },
         });
       } catch (error) {
-        console.warn(error);
+        console.warn(this.tasksName, error);
       }
     } finally {
       if (this.workerConfig.trackingRunningTasks) {
@@ -325,21 +327,21 @@ export class Worker extends EventEmitter {
   };
 
   private poll = async () => {
-    try {
-      const tasks = await this.consume();
-      if (tasks.length > 0) {
-        await Promise.all(tasks.map(this.processTask));
-        this.commit();
-      }
-    } catch (err) {
-      // In case of consume error
-      console.log(err);
-    } finally {
-      // Check if still isSubscribed
-      if (this.isSubscribed) {
-        setTimeout(() => this.poll(), 10);
+    // https://github.com/nodejs/node/issues/6673
+    while (this.isSubscribed) {
+      try {
+        const tasks = await this.consume();
+        if (tasks.length > 0) {
+          await Promise.all(tasks.map(this.processTask));
+          this.commit();
+        }
+      } catch (err) {
+        // In case of consume error
+        console.log(this.tasksName, err);
       }
     }
+
+    console.log(`Stop subscribed ${this.tasksName}`);
   };
 
   subscribe = () => {
