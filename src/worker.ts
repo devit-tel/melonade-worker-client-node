@@ -265,9 +265,8 @@ export class Worker extends EventEmitter {
   };
 
   private dispatchTask = async (task: Task.ITask, isTimeout: boolean) => {
-    const t = R.clone(task);
     const logger = (logs: string) => {
-      this.updateTask(t, {
+      this.updateTask(task, {
         status: State.TaskStates.Inprogress,
         logs,
       });
@@ -275,10 +274,15 @@ export class Worker extends EventEmitter {
 
     switch (task.type) {
       case Task.TaskTypes.Task:
-        return await this.taskCallback(t, logger, isTimeout, this.updateTask);
+        return await this.taskCallback(
+          task,
+          logger,
+          isTimeout,
+          this.updateTask,
+        );
       case Task.TaskTypes.Compensate:
         return await this.compensateCallback(
-          t,
+          task,
           logger,
           isTimeout,
           this.updateTask,
