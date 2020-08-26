@@ -337,7 +337,7 @@ export class Worker extends EventEmitter {
       // In case of consume error
       // Check if still isSubscribed
       if (this.isSubscribed) {
-        setImmediate(this.poll);
+        setTimeout(() => this.poll(), 10);
       }
     }
   };
