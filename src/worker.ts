@@ -333,11 +333,6 @@ export class Worker extends EventEmitter {
       }
     } catch (err) {
       console.log(err);
-      // In case of error delay 1s before retry
-      if (this.isSubscribed) {
-        setTimeout(this.poll, 1000);
-      }
-      return;
     } finally {
       // In case of consume error
       // Check if still isSubscribed
