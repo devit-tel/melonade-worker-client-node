@@ -332,9 +332,9 @@ export class Worker extends EventEmitter {
         this.commit();
       }
     } catch (err) {
+      // In case of consume error
       console.log(err);
     } finally {
-      // In case of consume error
       // Check if still isSubscribed
       if (this.isSubscribed) {
         setTimeout(() => this.poll(), 10);
