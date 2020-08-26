@@ -109,6 +109,7 @@ export class Worker extends EventEmitter {
   private runningTasks: {
     [taskId: string]: Task.ITask;
   } = {};
+  private tasksName: string | string[];
 
   constructor(
     tasksName: string | string[],
@@ -129,6 +130,7 @@ export class Worker extends EventEmitter {
   ) {
     super();
 
+    this.tasksName = tasksName;
     this.taskCallback = taskCallback;
     this.compensateCallback = compensateCallback;
     this.workerConfig = {
@@ -263,9 +265,8 @@ export class Worker extends EventEmitter {
   };
 
   private dispatchTask = async (task: Task.ITask, isTimeout: boolean) => {
-    const t = R.clone(task);
     const logger = (logs: string) => {
-      this.updateTask(t, {
+      this.updateTask(task, {
         status: State.TaskStates.Inprogress,
         logs,
       });
@@ -273,10 +274,15 @@ export class Worker extends EventEmitter {
 
     switch (task.type) {
       case Task.TaskTypes.Task:
-        return await this.taskCallback(t, logger, isTimeout, this.updateTask);
+        return await this.taskCallback(
+          task,
+          logger,
+          isTimeout,
+          this.updateTask,
+        );
       case Task.TaskTypes.Compensate:
         return await this.compensateCallback(
-          t,
+          task,
           logger,
           isTimeout,
           this.updateTask,
@@ -315,7 +321,7 @@ export class Worker extends EventEmitter {
           },
         });
       } catch (error) {
-        console.warn(error);
+        console.warn(this.tasksName, error);
       }
     } finally {
       if (this.workerConfig.trackingRunningTasks) {
@@ -325,26 +331,21 @@ export class Worker extends EventEmitter {
   };
 
   private poll = async () => {
-    try {
-      const tasks = await this.consume();
-      if (tasks.length > 0) {
-        await Promise.all(tasks.map(this.processTask));
-        this.commit();
-      }
-    } catch (err) {
-      console.log(err);
-      // In case of error delay 1s before retry
-      if (this.isSubscribed) {
-        setTimeout(this.poll, 1000);
-      }
-      return;
-    } finally {
-      // In case of consume error
-      // Check if still isSubscribed
-      if (this.isSubscribed) {
-        setImmediate(this.poll);
+    // https://github.com/nodejs/node/issues/6673
+    while (this.isSubscribed) {
+      try {
+        const tasks = await this.consume();
+        if (tasks.length > 0) {
+          await Promise.all(tasks.map(this.processTask));
+          this.commit();
+        }
+      } catch (err) {
+        // In case of consume error
+        console.log(this.tasksName, err);
       }
     }
+
+    console.log(`Stop subscribed ${this.tasksName}`);
   };
 
   subscribe = () => {

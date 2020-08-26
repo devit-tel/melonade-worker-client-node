@@ -11,7 +11,7 @@
     "build": "npm run clean & tsc -p tsconfig.release.json",
     "build:watch": "npm run clean & tsc -w -p tsconfig.release.json",
     "lint": "tslint -t stylish --project \"tsconfig.json\"",
-    "test": "jest --coverage",
+    "test": "jest --coverage --passWithNoTests",
     "test:watch": "jest --watch",
     "prepublishOnly": "npm run build"
   },
@@ -27,7 +27,7 @@
     "@types/jest": "^24.0.23",
     "@types/node": "^10.17.5",
     "@types/ramda": "^0.26.33",
-    "jest": "^26.4.0",
+    "jest": "^26.4.2",
     "prettier": "^2.0.5",
     "rimraf": "^2.6.3",
     "ts-jest": "^26.2.0",
