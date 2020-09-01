@@ -1,16 +1,22 @@
-import { Event, Kafka, State, Task } from '@melonade/melonade-declaration';
+import { Event, Kafka, Task } from '@melonade/melonade-declaration';
+import axios from 'axios';
 import { EventEmitter } from 'events';
 import {
   ConsumerGlobalConfig,
   KafkaConsumer,
   LibrdKafkaError,
   Message,
-  Producer,
 } from 'node-rdkafka';
-import * as R from 'ramda';
 import { jsonTryParse } from './utils/common';
+import {
+  isTaskTimeout,
+  ITaskRef,
+  ITaskResponse,
+  mapTaskNameToTopic,
+} from './worker';
 
-export interface IWorkerConfig {
+export interface ISyncWorkerConfig {
+  processManagerUrl: string;
   kafkaServers: string;
   namespace?: string;
   maximumPollingTasks?: number;
@@ -21,23 +27,8 @@ export interface IWorkerConfig {
   trackingRunningTasks?: boolean;
 }
 
-export interface ITaskResponse {
-  status:
-    | State.TaskStates.Inprogress
-    | State.TaskStates.Completed
-    | State.TaskStates.Failed;
-  output?: any;
-  logs?: string | string[];
-  doNotRetry?: boolean;
-}
-
-export interface ITaskRef {
-  transactionId: string;
-  taskId: string;
-}
-
-export interface IUpdateTask {
-  (task: ITaskRef, result: ITaskResponse): void;
+export interface ISyncUpdateTask {
+  (task: ITaskRef, result: ITaskResponse): Promise<void>;
 }
 
 const DEFAULT_WORKER_CONFIG = {
@@ -48,64 +39,23 @@ const DEFAULT_WORKER_CONFIG = {
   autoStart: true,
   latencyCompensationMs: 50,
   trackingRunningTasks: false,
-} as IWorkerConfig;
-
-export const alwaysCompleteFunction = (): ITaskResponse => ({
-  status: State.TaskStates.Completed,
-});
-
-export const mapTaskNameToTopic = (taskName: string, prefix: string) =>
-  `melonade.${prefix}.task.${taskName}`;
-
-export const isTaskTimeout = (
-  task: Task.ITask,
-  latencyCompensationMs: number = 0,
-): boolean => {
-  const elapsedTime = Date.now() - task.startTime + latencyCompensationMs;
-  return (
-    (task.ackTimeout > 0 && task.ackTimeout < elapsedTime) ||
-    (task.timeout > 0 && task.timeout < elapsedTime)
-  );
-};
-
-export const validateTaskResult = (result: ITaskResponse): ITaskResponse => {
-  const status = R.prop('status', result);
-  if (
-    ![
-      State.TaskStates.Inprogress,
-      State.TaskStates.Completed,
-      State.TaskStates.Failed,
-    ].includes(status)
-  ) {
-    return {
-      status: State.TaskStates.Failed,
-      output: {
-        error: `"${status}" is invalid status`,
-      },
-    };
-  }
-
-  return result;
-};
+} as ISyncWorkerConfig;
 
 // Maybe use kafka streamAPI
-export class Worker extends EventEmitter {
+export class SyncWorker extends EventEmitter {
   private consumer: KafkaConsumer;
-  private producer: Producer;
-  workerConfig: IWorkerConfig;
+  workerConfig: ISyncWorkerConfig;
   private isSubscribed: boolean = false;
   private taskCallback: (
     task: Task.ITask,
-    logger: (message: string) => void,
+    updateTask: ISyncUpdateTask,
     isTimeout: boolean,
-    updateTask: IUpdateTask,
-  ) => ITaskResponse | Promise<ITaskResponse>;
+  ) => void | Promise<void>;
   private compensateCallback: (
     task: Task.ITask,
-    logger: (message: string) => void,
+    updateTask: ISyncUpdateTask,
     isTimeout: boolean,
-    updateTask: IUpdateTask,
-  ) => ITaskResponse | Promise<ITaskResponse>;
+  ) => void | Promise<void>;
   private runningTasks: {
     [taskId: string]: Task.ITask;
   } = {};
@@ -115,17 +65,15 @@ export class Worker extends EventEmitter {
     tasksName: string | string[],
     taskCallback: (
       task: Task.ITask,
-      logger: (message: string) => void,
+      updateTask: ISyncUpdateTask,
       isTimeout: boolean,
-      updateTask: IUpdateTask,
-    ) => ITaskResponse | Promise<ITaskResponse>,
+    ) => void | Promise<void>,
     compensateCallback: (
       task: Task.ITask,
-      logger: (message: string) => void,
+      updateTask: ISyncUpdateTask,
       isTimeout: boolean,
-      updateTask: IUpdateTask,
-    ) => ITaskResponse | Promise<ITaskResponse> = alwaysCompleteFunction,
-    workerConfig: IWorkerConfig,
+    ) => void | Promise<void>,
+    workerConfig: ISyncWorkerConfig,
     kafkaConfig: ConsumerGlobalConfig = {},
   ) {
     super();
@@ -147,25 +95,9 @@ export class Worker extends EventEmitter {
       },
       { 'auto.offset.reset': 'earliest' },
     );
-    this.producer = new Producer(
-      {
-        'compression.type': 'snappy',
-        'enable.idempotence': false,
-        retries: 100,
-        'socket.keepalive.enable': true,
-        'queue.buffering.max.messages': 100000,
-        'queue.buffering.max.ms': 1,
-        'batch.num.messages': 10000,
-        'bootstrap.servers': workerConfig.kafkaServers,
-        ...kafkaConfig,
-      },
-      {},
-    );
 
     this.consumer.on('ready', () => {
-      if (this.isWorkerClientReady()) {
-        this.emit('ready');
-      }
+      this.emit('ready');
 
       if (Array.isArray(tasksName)) {
         this.consumer.subscribe(
@@ -186,38 +118,20 @@ export class Worker extends EventEmitter {
     this.consumer.setDefaultConsumeTimeout(this.workerConfig.pollingCooldown);
     this.consumer.connect();
 
-    this.producer.on('ready', () => {
-      if (this.isWorkerClientReady()) {
-        this.emit('ready');
-      }
-    });
-    this.producer.setPollInterval(100);
-    this.producer.connect();
-
     process.once('SIGTERM', () => {
       this.consumer.unsubscribe();
-
-      // setTimeout(() => {
-      //   process.exit(0);
-      // }, 1000);
     });
   }
 
   get health(): {
     consumer: 'connected' | 'disconnected';
-    producer: 'connected' | 'disconnected';
     tasks: { [taskId: string]: Task.ITask };
   } {
     return {
       consumer: this.consumer.isConnected() ? 'connected' : 'disconnected',
-      producer: this.producer.isConnected() ? 'connected' : 'disconnected',
       tasks: this.runningTasks,
     };
   }
-
-  private isWorkerClientReady = (): boolean => {
-    return this.producer.isConnected() && this.consumer.isConnected();
-  };
 
   consume = (
     messageNumber: number = this.workerConfig.maximumPollingTasks,
@@ -240,24 +154,23 @@ export class Worker extends EventEmitter {
     });
   };
 
-  updateTask = (task: ITaskRef, result: ITaskResponse) => {
-    return this.producer.produce(
-      `melonade.${this.workerConfig.namespace}.event`,
-      null,
-      Buffer.from(
-        JSON.stringify({
-          transactionId: task.transactionId,
-          taskId: task.taskId,
-          status: result.status,
-          output: result.output,
-          logs: result.logs,
-          isSystem: false,
-          doNotRetry: result.doNotRetry,
-        } as Event.ITaskUpdate),
-      ),
-      task.transactionId,
-      Date.now(),
+  updateTask = async (task: ITaskRef, result: ITaskResponse) => {
+    await axios.post(
+      'v1/transaction/update',
+      {
+        transactionId: task.transactionId,
+        taskId: task.taskId,
+        status: result.status,
+        output: result.output,
+        logs: result.logs,
+        isSystem: false,
+        doNotRetry: result.doNotRetry,
+      } as Event.ITaskUpdate,
+      {
+        baseURL: this.workerConfig.processManagerUrl,
+      },
     );
+    return;
   };
 
   commit = () => {
@@ -265,28 +178,11 @@ export class Worker extends EventEmitter {
   };
 
   private dispatchTask = async (task: Task.ITask, isTimeout: boolean) => {
-    const logger = (logs: string) => {
-      this.updateTask(task, {
-        status: State.TaskStates.Inprogress,
-        logs,
-      });
-    };
-
     switch (task.type) {
       case Task.TaskTypes.Task:
-        return await this.taskCallback(
-          task,
-          logger,
-          isTimeout,
-          this.updateTask,
-        );
+        return await this.taskCallback(task, this.updateTask, isTimeout);
       case Task.TaskTypes.Compensate:
-        return await this.compensateCallback(
-          task,
-          logger,
-          isTimeout,
-          this.updateTask,
-        );
+        return await this.compensateCallback(task, this.updateTask, isTimeout);
       default:
         throw new Error(`Task type: "${task.type}" is invalid`);
     }
@@ -301,28 +197,15 @@ export class Worker extends EventEmitter {
       this.emit('task-timeout', task);
       return;
     }
-    this.updateTask(task, {
-      status: State.TaskStates.Inprogress,
-    });
 
     if (this.workerConfig.trackingRunningTasks) {
       this.runningTasks[task.taskId] = task;
     }
 
     try {
-      const result = await this.dispatchTask(task, isTimeout);
-      this.updateTask(task, validateTaskResult(result));
+      await this.dispatchTask(task, isTimeout);
     } catch (error) {
-      try {
-        this.updateTask(task, {
-          status: State.TaskStates.Failed,
-          output: {
-            error: error.toString(),
-          },
-        });
-      } catch (error) {
-        console.warn(this.tasksName, error);
-      }
+      console.warn(this.tasksName, error);
     } finally {
       if (this.workerConfig.trackingRunningTasks) {
         delete this.runningTasks[task.taskId];
