@@ -16,10 +16,16 @@ for (const forkID in new Array(1).fill(null)) {
       `t${workerId}`,
       // process task
       async (task, updateTask) => {
-        await updateTask(task, { status: TaskStates.Inprogress });
-        console.log(`Processing ${task.taskName}`);
-        await sleep(5000);
-        await updateTask(task, { status: State.TaskStates.Completed });
+        try {
+          await updateTask(task, { status: TaskStates.Inprogress });
+          console.log(`Processing ${task.taskName}`);
+          await sleep(10000);
+          await updateTask(task, {
+            status: State.TaskStates.Completed,
+          });
+        } catch (error) {
+          console.log('Cannot update task...', error?.response?.data);
+        }
       },
       // compensate task
       async (task, updateTask) => {
