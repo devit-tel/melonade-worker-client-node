@@ -1,6 +1,5 @@
 import { State, Task } from '@melonade/melonade-declaration';
-import { TaskStates } from '..';
-import { SyncWorker } from '../syncWorker';
+import { SyncWorker, TaskStates } from '..';
 
 const kafkaServers = process.env['MELONADE_KAFKA_SERVERS'];
 const namespace = process.env['MELONADE_NAMESPACE'];

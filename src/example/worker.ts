@@ -1,5 +1,5 @@
 import { State, Task } from '@melonade/melonade-declaration';
-import { Worker } from '../worker';
+import { Worker } from '..';
 
 const kafkaServers = process.env['MELONADE_KAFKA_SERVERS'];
 const namespace = process.env['MELONADE_NAMESPACE'];
@@ -27,7 +27,7 @@ for (const forkID in new Array(1).fill(null)) {
       },
 
       // compensate task
-      task => {
+      (task) => {
         console.log(`Compenstating ${task.taskName}`);
         return {
           status: State.TaskStates.Completed,

@@ -11,6 +11,7 @@ export {
   WorkflowDefinition,
 } from '@melonade/melonade-declaration';
 export { Admin, IAdminConfig } from './admin';
+export { ISyncUpdateTask, ISyncWorkerConfig, SyncWorker } from './syncWorker';
 export { ITaskRef, ITaskResponse, IWorkerConfig, Worker } from './worker';
 
 export const TaskStates = State.TaskStates;
