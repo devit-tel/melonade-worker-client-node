@@ -18,20 +18,33 @@ for (const forkID in new Array(1).fill(null)) {
         try {
           await updateTask(task, { status: TaskStates.Inprogress });
           console.log(`Processing ${task.taskName}`);
-          await sleep(10000);
+          await sleep(3000);
           await updateTask(task, {
             status: State.TaskStates.Completed,
           });
         } catch (error) {
-          console.log('Cannot update task...', error?.response?.data);
+          console.log(
+            task.taskName,
+            "Cannot update task..., Rollback what's has been done",
+          );
         }
       },
       // compensate task
       async (task, updateTask) => {
-        await updateTask(task, { status: TaskStates.Inprogress });
-        console.log(`Compenstating ${task.taskName}`);
-        await sleep(10);
-        await updateTask(task, { status: TaskStates.Completed });
+        try {
+          await updateTask(task, { status: TaskStates.Inprogress });
+          console.log(`Compenstating ${task.taskName}`);
+          await sleep(10);
+          await updateTask(task, { status: TaskStates.Completed });
+        } catch (error) {
+          console.log(
+            task.taskName,
+            "Cannot compensate task..., Rollback what's has been done",
+            'Need inspection !!!',
+            task,
+            error,
+          );
+        }
       },
       // configs
       {
