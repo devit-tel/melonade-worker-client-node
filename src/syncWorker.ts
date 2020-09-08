@@ -86,14 +86,21 @@ export class SyncWorker extends EventEmitter {
       ...workerConfig,
     };
 
+    var tn = '';
+    if (Array.isArray(tasksName)) {
+      tn = tasksName.join('-');
+    } else {
+      tn = tasksName;
+    }
+
     this.consumer = new KafkaConsumer(
       {
         'bootstrap.servers': workerConfig.kafkaServers,
-        'group.id': `melonade-${this.workerConfig.namespace}.client`,
+        'group.id': `melonade-${this.workerConfig.namespace}-client-${tn}`,
         'enable.auto.commit': false,
         ...kafkaConfig,
       },
-      { 'auto.offset.reset': 'earliest' },
+      { 'auto.offset.reset': 'latest' },
     );
 
     this.consumer.on('ready', () => {
