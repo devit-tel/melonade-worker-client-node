@@ -101,6 +101,10 @@ export class SyncWorker extends EventEmitter {
         'bootstrap.servers': workerConfig.kafkaServers,
         'group.id': `melonade-${this.workerConfig.namespace}-client-${tn}`,
         'enable.auto.commit': false,
+        'max.poll.interval.ms': Math.max(
+          300000,
+          this.workerConfig.batchTimeoutMs + 2 * 60 * 1000,
+        ),
         ...kafkaConfig,
       },
       { 'auto.offset.reset': 'latest' },

@@ -146,6 +146,10 @@ export class Worker extends EventEmitter {
         'bootstrap.servers': workerConfig.kafkaServers,
         'group.id': `melonade-${this.workerConfig.namespace}.client`,
         'enable.auto.commit': false,
+        'max.poll.interval.ms': Math.max(
+          300000,
+          this.workerConfig.batchTimeoutMs + 2 * 60 * 1000,
+        ),
         ...kafkaConfig,
       },
       { 'auto.offset.reset': 'earliest' },
