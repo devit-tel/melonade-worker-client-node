@@ -7,6 +7,7 @@ import {
   Message,
   Producer,
 } from 'node-rdkafka';
+import { timeout, TimeoutError } from 'promise-timeout';
 import * as R from 'ramda';
 import { jsonTryParse } from './utils/common';
 
@@ -19,6 +20,7 @@ export interface IWorkerConfig {
   autoStart?: boolean;
   latencyCompensationMs?: number;
   trackingRunningTasks?: boolean;
+  batchTimeoutMs?: number;
 }
 
 export interface ITaskResponse {
@@ -48,6 +50,7 @@ const DEFAULT_WORKER_CONFIG = {
   autoStart: true,
   latencyCompensationMs: 50,
   trackingRunningTasks: false,
+  batchTimeoutMs: 10 * 60 * 1000, // 10 mins
 } as IWorkerConfig;
 
 export const alwaysCompleteFunction = (): ITaskResponse => ({
@@ -107,7 +110,7 @@ export class Worker extends EventEmitter {
     updateTask: IUpdateTask,
   ) => ITaskResponse | Promise<ITaskResponse>;
   private runningTasks: {
-    [taskId: string]: Task.ITask;
+    [taskId: string]: Task.ITask | string;
   } = {};
   private tasksName: string | string[];
 
@@ -206,7 +209,7 @@ export class Worker extends EventEmitter {
   get health(): {
     consumer: 'connected' | 'disconnected';
     producer: 'connected' | 'disconnected';
-    tasks: { [taskId: string]: Task.ITask };
+    tasks: { [taskId: string]: Task.ITask | string };
   } {
     return {
       consumer: this.consumer.isConnected() ? 'connected' : 'disconnected',
@@ -307,6 +310,8 @@ export class Worker extends EventEmitter {
 
     if (this.workerConfig.trackingRunningTasks) {
       this.runningTasks[task.taskId] = task;
+    } else {
+      this.runningTasks[task.taskId] = task.taskId;
     }
 
     try {
@@ -324,9 +329,7 @@ export class Worker extends EventEmitter {
         console.warn(this.tasksName, error);
       }
     } finally {
-      if (this.workerConfig.trackingRunningTasks) {
-        delete this.runningTasks[task.taskId];
-      }
+      delete this.runningTasks[task.taskId];
     }
   };
 
@@ -336,12 +339,24 @@ export class Worker extends EventEmitter {
       try {
         const tasks = await this.consume();
         if (tasks.length > 0) {
-          await Promise.all(tasks.map(this.processTask));
+          if (this.workerConfig.batchTimeoutMs > 0) {
+            await timeout(
+              Promise.all(tasks.map(this.processTask)),
+              this.workerConfig.batchTimeoutMs,
+            );
+          } else {
+            await Promise.all(tasks.map(this.processTask));
+          }
+
           this.commit();
         }
       } catch (err) {
         // In case of consume error
-        console.log(this.tasksName, err);
+        if (err instanceof TimeoutError) {
+          console.log(`${this.tasksName}: batch timeout`, this.runningTasks);
+        } else {
+          console.log(this.tasksName, 'poll error', err);
+        }
       }
     }
 
