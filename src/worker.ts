@@ -141,18 +141,25 @@ export class Worker extends EventEmitter {
       ...workerConfig,
     };
 
+    var tn = '';
+    if (Array.isArray(tasksName)) {
+      tn = tasksName.join('-');
+    } else {
+      tn = tasksName;
+    }
+
     this.consumer = new KafkaConsumer(
       {
         'bootstrap.servers': workerConfig.kafkaServers,
-        'group.id': `melonade-${this.workerConfig.namespace}.client`,
+        'group.id': `melonade-${this.workerConfig.namespace}-client-${tn}`,
         'enable.auto.commit': false,
         'max.poll.interval.ms': Math.max(
           300000,
-          this.workerConfig.batchTimeoutMs + 2 * 60 * 1000,
+          this.workerConfig.batchTimeoutMs * 5,
         ),
         ...kafkaConfig,
       },
-      { 'auto.offset.reset': 'earliest' },
+      { 'auto.offset.reset': 'latest' },
     );
     this.producer = new Producer(
       {
@@ -203,10 +210,7 @@ export class Worker extends EventEmitter {
 
     process.once('SIGTERM', () => {
       this.consumer.unsubscribe();
-
-      // setTimeout(() => {
-      //   process.exit(0);
-      // }, 1000);
+      console.log(`${this.tasksName}: unsubscribed`);
     });
   }
 
@@ -229,12 +233,13 @@ export class Worker extends EventEmitter {
   consume = (
     messageNumber: number = this.workerConfig.maximumPollingTasks,
   ): Promise<Task.ITask[]> => {
-    return new Promise((resolve: Function, reject: Function) => {
+    return new Promise((resolve: Function) => {
       this.consumer.consume(
         messageNumber,
         (error: LibrdKafkaError, messages: Message[]) => {
           if (error) {
-            setTimeout(() => reject(error), 1000);
+            console.log(`${this.tasksName}: consume error`, error);
+            setTimeout(() => resolve([]), 1000);
           } else {
             resolve(
               messages.map((message: Kafka.kafkaConsumerMessage) =>
@@ -268,7 +273,12 @@ export class Worker extends EventEmitter {
   };
 
   commit = () => {
-    return this.consumer.commit();
+    try {
+      // @ts-ignore
+      this.consumer.commitSync();
+    } catch (error) {
+      console.log(`${this.tasksName}: commit error`, error);
+    }
   };
 
   private dispatchTask = async (task: Task.ITask, isTimeout: boolean) => {
@@ -340,34 +350,29 @@ export class Worker extends EventEmitter {
   private poll = async () => {
     // https://github.com/nodejs/node/issues/6673
     while (this.isSubscribed) {
-      try {
-        const tasks = await this.consume();
-        if (tasks.length > 0) {
-          try {
-            if (this.workerConfig.batchTimeoutMs > 0) {
-              await timeout(
-                Promise.all(tasks.map(this.processTask)),
-                this.workerConfig.batchTimeoutMs,
-              );
-            } else {
-              await Promise.all(tasks.map(this.processTask));
-            }
-          } catch (error) {
-            if (error instanceof TimeoutError) {
-              console.log(
-                `${this.tasksName}: batch timeout`,
-                this.runningTasks,
-              );
-            } else {
-              console.log(this.tasksName, 'process error', error);
-            }
+      const tasks = await this.consume();
+      if (tasks.length > 0) {
+        try {
+          if (this.workerConfig.batchTimeoutMs > 0) {
+            await timeout(
+              Promise.all(tasks.map(this.processTask)),
+              this.workerConfig.batchTimeoutMs,
+            );
+          } else {
+            await Promise.all(tasks.map(this.processTask));
           }
-
+        } catch (error) {
+          if (error instanceof TimeoutError) {
+            console.log(
+              `${this.tasksName}: batch timeout`,
+              R.keys(this.runningTasks),
+            );
+          } else {
+            console.log(this.tasksName, 'process error', error);
+          }
+        } finally {
           this.commit();
         }
-      } catch (err) {
-        // In case of consume error
-        console.log(this.tasksName, 'poll error', err);
       }
     }
 

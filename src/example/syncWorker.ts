@@ -1,13 +1,13 @@
 import { State, Task } from '@melonade/melonade-declaration';
 import { SyncWorker, TaskStates } from '..';
 
-const kafkaServers = process.env['MELONADE_KAFKA_SERVERS'];
-const namespace = process.env['MELONADE_NAMESPACE'];
-const processManagerUrl =
-  process.env['MELONADE_PROCESS_MANAGER_URL'] || 'http://localhost:8081';
+const kafkaServers = 'localhost:29092';
+const namespace = 'docker-compose';
+const processManagerUrl = 'http://localhost:8081';
 
 const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
+// tslint:disable-next-line: no-for-in
 for (const forkID in new Array(1).fill(null)) {
   for (const workerId of [1, 2, 3]) {
     const worker = new SyncWorker(
