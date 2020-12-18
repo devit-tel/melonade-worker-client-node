@@ -16,7 +16,7 @@ for (const forkID in new Array(1).fill(null)) {
       // process task
       async (task, _logger, _isTimeOut) => {
         console.log(`Processing ${task.taskName}: ${task.taskId}`);
-        await sleep(15 * 60 * 1000);
+        await sleep(5 * 1000);
         console.log(`Processed ${task.taskName}:  ${task.taskId}`);
         return {
           status: State.TaskStates.Completed,
