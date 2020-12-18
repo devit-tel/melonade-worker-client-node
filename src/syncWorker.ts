@@ -233,23 +233,31 @@ export class SyncWorker extends EventEmitter {
       try {
         const tasks = await this.consume();
         if (tasks.length > 0) {
-          if (this.workerConfig.batchTimeoutMs > 0) {
-            await timeout(
-              Promise.all(tasks.map(this.processTask)),
-              this.workerConfig.batchTimeoutMs,
-            );
-          } else {
-            await Promise.all(tasks.map(this.processTask));
+          try {
+            if (this.workerConfig.batchTimeoutMs > 0) {
+              await timeout(
+                Promise.all(tasks.map(this.processTask)),
+                this.workerConfig.batchTimeoutMs,
+              );
+            } else {
+              await Promise.all(tasks.map(this.processTask));
+            }
+          } catch (error) {
+            if (error instanceof TimeoutError) {
+              console.log(
+                `${this.tasksName}: batch timeout`,
+                this.runningTasks,
+              );
+            } else {
+              console.log(this.tasksName, 'process error', error);
+            }
           }
+
           this.commit();
         }
       } catch (err) {
         // In case of consume error
-        if (err instanceof TimeoutError) {
-          console.log(`${this.tasksName}: batch timeout`, this.runningTasks);
-        } else {
-          console.log(this.tasksName, 'poll error', err);
-        }
+        console.log(this.tasksName, 'poll error', err);
       }
     }
 
