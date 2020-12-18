@@ -7,6 +7,8 @@ import {
   LibrdKafkaError,
   Message,
 } from 'node-rdkafka';
+import { timeout, TimeoutError } from 'promise-timeout';
+import * as R from 'ramda';
 import { jsonTryParse } from './utils/common';
 import {
   isTaskTimeout,
@@ -25,6 +27,7 @@ export interface ISyncWorkerConfig {
   autoStart?: boolean;
   latencyCompensationMs?: number;
   trackingRunningTasks?: boolean;
+  batchTimeoutMs?: number;
 }
 
 export interface ISyncUpdateTask {
@@ -39,6 +42,7 @@ const DEFAULT_WORKER_CONFIG = {
   autoStart: true,
   latencyCompensationMs: 50,
   trackingRunningTasks: false,
+  batchTimeoutMs: 10 * 60 * 1000, // 10 mins
 } as ISyncWorkerConfig;
 
 // Maybe use kafka streamAPI
@@ -57,7 +61,7 @@ export class SyncWorker extends EventEmitter {
     isTimeout: boolean,
   ) => void | Promise<void>;
   private runningTasks: {
-    [taskId: string]: Task.ITask;
+    [taskId: string]: Task.ITask | string;
   } = {};
   private tasksName: string | string[];
 
@@ -98,6 +102,10 @@ export class SyncWorker extends EventEmitter {
         'bootstrap.servers': workerConfig.kafkaServers,
         'group.id': `melonade-${this.workerConfig.namespace}-client-${tn}`,
         'enable.auto.commit': false,
+        'max.poll.interval.ms': Math.max(
+          300000,
+          this.workerConfig.batchTimeoutMs * 5,
+        ),
         ...kafkaConfig,
       },
       { 'auto.offset.reset': 'latest' },
@@ -126,13 +134,14 @@ export class SyncWorker extends EventEmitter {
     this.consumer.connect();
 
     process.once('SIGTERM', () => {
+      console.log(`${this.tasksName}: unsubscribed`);
       this.consumer.unsubscribe();
     });
   }
 
   get health(): {
     consumer: 'connected' | 'disconnected';
-    tasks: { [taskId: string]: Task.ITask };
+    tasks: { [taskId: string]: Task.ITask | string };
   } {
     return {
       consumer: this.consumer.isConnected() ? 'connected' : 'disconnected',
@@ -143,12 +152,13 @@ export class SyncWorker extends EventEmitter {
   consume = (
     messageNumber: number = this.workerConfig.maximumPollingTasks,
   ): Promise<Task.ITask[]> => {
-    return new Promise((resolve: Function, reject: Function) => {
+    return new Promise((resolve: Function) => {
       this.consumer.consume(
         messageNumber,
         (error: LibrdKafkaError, messages: Message[]) => {
           if (error) {
-            setTimeout(() => reject(error), 1000);
+            console.log(`${this.tasksName}: consume error`, error);
+            setTimeout(() => resolve([]), 1000);
           } else {
             resolve(
               messages.map((message: Kafka.kafkaConsumerMessage) =>
@@ -181,7 +191,12 @@ export class SyncWorker extends EventEmitter {
   };
 
   commit = () => {
-    return this.consumer.commit();
+    try {
+      // @ts-ignore
+      this.consumer.commitSync();
+    } catch (error) {
+      console.log(`${this.tasksName}: commit error`, error);
+    }
   };
 
   private dispatchTask = async (task: Task.ITask, isTimeout: boolean) => {
@@ -207,6 +222,8 @@ export class SyncWorker extends EventEmitter {
 
     if (this.workerConfig.trackingRunningTasks) {
       this.runningTasks[task.taskId] = task;
+    } else {
+      this.runningTasks[task.taskId] = task.taskId;
     }
 
     try {
@@ -214,24 +231,36 @@ export class SyncWorker extends EventEmitter {
     } catch (error) {
       console.warn(this.tasksName, error);
     } finally {
-      if (this.workerConfig.trackingRunningTasks) {
-        delete this.runningTasks[task.taskId];
-      }
+      delete this.runningTasks[task.taskId];
     }
   };
 
   private poll = async () => {
     // https://github.com/nodejs/node/issues/6673
     while (this.isSubscribed) {
-      try {
-        const tasks = await this.consume();
-        if (tasks.length > 0) {
-          await Promise.all(tasks.map(this.processTask));
+      const tasks = await this.consume();
+      if (tasks.length > 0) {
+        try {
+          if (this.workerConfig.batchTimeoutMs > 0) {
+            await timeout(
+              Promise.all(tasks.map(this.processTask)),
+              this.workerConfig.batchTimeoutMs,
+            );
+          } else {
+            await Promise.all(tasks.map(this.processTask));
+          }
+        } catch (error) {
+          if (error instanceof TimeoutError) {
+            console.log(
+              `${this.tasksName}: batch timeout`,
+              R.keys(this.runningTasks),
+            );
+          } else {
+            console.log(this.tasksName, 'process error', error);
+          }
+        } finally {
           this.commit();
         }
-      } catch (err) {
-        // In case of consume error
-        console.log(this.tasksName, err);
       }
     }
 

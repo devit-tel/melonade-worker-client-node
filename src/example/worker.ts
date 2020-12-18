@@ -1,28 +1,25 @@
 import { State, Task } from '@melonade/melonade-declaration';
 import { Worker } from '..';
 
-const kafkaServers = process.env['MELONADE_KAFKA_SERVERS'];
-const namespace = process.env['MELONADE_NAMESPACE'];
+const kafkaServers = 'localhost:29092';
+const namespace = 'docker-compose';
 
+const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
+
+// tslint:disable-next-line: no-for-in
 for (const forkID in new Array(1).fill(null)) {
-  for (const workerId of [1, 2, 3]) {
+  for (const workerId of [4]) {
     const worker = new Worker(
       // task name
       `t${workerId}`,
 
       // process task
-      (task, _logger, _isTimeOut, updateTask) => {
-        setTimeout(() => {
-          updateTask(task, {
-            status: State.TaskStates.Completed,
-          });
-
-          console.log(`Async Completed ${task.taskName}`);
-        }, 5000);
-
-        console.log(`Processing ${task.taskName}`);
+      async (task, _logger, _isTimeOut) => {
+        console.log(`Processing ${task.taskName}: ${task.taskId}`);
+        await sleep(5 * 1000);
+        console.log(`Processed ${task.taskName}:  ${task.taskId}`);
         return {
-          status: State.TaskStates.Inprogress,
+          status: State.TaskStates.Completed,
         };
       },
 
