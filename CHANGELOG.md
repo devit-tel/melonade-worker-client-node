@@ -1,3 +1,9 @@
+## [0.23.1] - 2021-01-07
+
+### Added
+
+- Add debug workerID on event message
+
 ## [0.23.0] - 2020-12-19
 
 ### Added
