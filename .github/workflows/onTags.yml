@@ -6,7 +6,7 @@ on:
       - '*'
 
 jobs:
-  push-docker:
+  publish-to-npm:
     runs-on: ubuntu-latest
 
     steps:
