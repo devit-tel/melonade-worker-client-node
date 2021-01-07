@@ -265,6 +265,7 @@ export class Worker extends EventEmitter {
           logs: result.logs,
           isSystem: false,
           doNotRetry: result.doNotRetry,
+          workerID: process.env['HOSTNAME'],
         } as Event.ITaskUpdate),
       ),
       task.transactionId,
