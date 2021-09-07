@@ -1,5 +1,4 @@
-import { State, Task } from '@melonade/melonade-declaration';
-import { SyncWorker, TaskStates } from '..';
+import { State, SyncWorker, Task, TaskStates } from '..';
 
 const kafkaServers = 'localhost:29092';
 const namespace = 'docker-compose';

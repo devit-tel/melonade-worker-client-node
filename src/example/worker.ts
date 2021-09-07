@@ -1,51 +1,43 @@
-import { State, Task } from '@melonade/melonade-declaration';
-import { Worker } from '..';
+import { ITask, ITaskResponse, IWorkerConfig, State, Worker } from '..';
 
-const kafkaServers = 'localhost:29092';
-const namespace = 'docker-compose';
+const config: IWorkerConfig = {
+  kafkaServers: 'localhost:29092', // kafka's brokers server
+  namespace: 'docker-compose', // melonade's namespace
+};
 
-const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
+// process callback task
+const processTask = async (task: ITask): Promise<ITaskResponse> => {
+  console.log(`Processing ${task.taskName}: ${task.taskId}`);
+  await sleep(5 * 1000);
+  console.log(`Processed ${task.taskName}:  ${task.taskId}`);
 
-// tslint:disable-next-line: no-for-in
-for (const forkID in new Array(1).fill(null)) {
-  for (const workerId of [4]) {
-    const worker = new Worker(
-      // task name
-      `t${workerId}`,
+  return {
+    status: State.TaskStates.Completed,
+    output: 'hello',
+  };
+};
 
-      // process task
-      async (task, _logger, _isTimeOut) => {
-        console.log(`Processing ${task.taskName}: ${task.taskId}`);
-        await sleep(5 * 1000);
-        console.log(`Processed ${task.taskName}:  ${task.taskId}`);
-        return {
-          status: State.TaskStates.Completed,
-        };
-      },
+// compensate callback task
+// will run if workflow failed, and task is success
+// reverse what has been done
+// task.input = { input: <processTask.input>, output: <processTask.output> }
+const compensateTask = async (task: ITask): Promise<ITaskResponse> => {
+  console.log(`Compensating ${task.taskName}: ${task.taskId}`);
+  await sleep(5 * 1000);
+  console.log(`Compensated ${task.taskName}:  ${task.taskId}`);
 
-      // compensate task
-      (task) => {
-        console.log(`Compenstating ${task.taskName}`);
-        return {
-          status: State.TaskStates.Completed,
-        };
-      },
+  return {
+    status: State.TaskStates.Completed,
+  };
+};
 
-      // configs
-      {
-        kafkaServers,
-        namespace,
-      },
-    );
+for (const workerId of ['t1', 't2', 't3']) {
+  const worker = new Worker(workerId, processTask, compensateTask, config);
 
-    worker.once('ready', () => {
-      console.log(`Fork ${forkID} Worker t${workerId} is ready!`);
-    });
-
-    worker.on('task-timeout', (task: Task.ITask) => {
-      console.log(
-        `Worker skiped ${task.taskName}: ${task.taskId} because it already timed out`,
-      );
-    });
-  }
+  worker.once('ready', () => {
+    console.log(`Worker ${workerId} is ready!`);
+  });
 }
+
+// util funcs
+const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
